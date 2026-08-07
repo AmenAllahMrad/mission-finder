@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Mission extends Model
 {
@@ -45,4 +46,12 @@ class Mission extends Model
     {
         return $this->belongsTo(Source::class);
     }
+    
+    public function stacks(): BelongsToMany
+{
+    return $this->belongsToMany(
+        Stack::class,
+        'mission_stack'
+    );
+}
 }
