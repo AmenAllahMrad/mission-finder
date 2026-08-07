@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Mission extends Model
 {
@@ -19,6 +20,7 @@ class Mission extends Model
         'tjm_max',
         'remote_type',
         'localisation',
+        'secteur',
         'duree_mois',
         'date_publication',
         'url_origine',
@@ -46,7 +48,7 @@ class Mission extends Model
     {
         return $this->belongsTo(Source::class);
     }
-    
+
     public function stacks(): BelongsToMany
 {
     return $this->belongsToMany(
@@ -54,4 +56,10 @@ class Mission extends Model
         'mission_stack'
     );
 }
+
+public function sourceOccurrences(): HasMany
+{
+    return $this->hasMany(MissionSource::class);
+}
+
 }

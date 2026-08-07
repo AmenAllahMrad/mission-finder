@@ -34,4 +34,10 @@ class Source extends Model
     {
         return $this->hasMany(Mission::class);
     }
+
+    public function missionOccurrences(): HasMany
+{
+    return $this->hasMany(MissionSource::class);
+}
+
 }
