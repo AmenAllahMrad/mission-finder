@@ -10,10 +10,18 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 
-class PollerSourceJob implements ShouldQueue
+class PollerSourceJob implements ShouldQueue, ShouldBeUnique
 {
     use Queueable;
+
+    public int $uniqueFor = 600;
+
+public function uniqueId(): string
+{
+    return (string) $this->sourceId;
+}
 
     public function __construct(
         public int $sourceId
