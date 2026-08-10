@@ -1,0 +1,19 @@
+[
+    {
+        "legal": "RemoteOK API metadata"
+    },
+    {
+        "id": "123456",
+        "position": "Senior Laravel Developer",
+        "company": "Acme Corp",
+        "description": "<p>Build Laravel APIs and backend services.</p>",
+        "location": "Europe",
+        "date": "2026-08-10T10:00:00+00:00",
+        "url": "https://remoteok.com/remote-jobs/123456",
+        "tags": [
+            "PHP",
+            "Laravel",
+            "API"
+        ]
+    }
+]
