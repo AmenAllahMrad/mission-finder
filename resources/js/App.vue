@@ -4,30 +4,16 @@ import axios from 'axios';
 
 import MissionsView from './components/MissionsView.vue';
 import SourcesView from './components/SourcesView.vue';
-
-/*
-|--------------------------------------------------------------------------
-| Navigation
-|--------------------------------------------------------------------------
-*/
+import ProfilsView from './components/ProfilsView.vue';
 
 const page = ref('dashboard');
-
-/*
-|--------------------------------------------------------------------------
-| Dashboard data
-|--------------------------------------------------------------------------
-*/
 
 const stats = ref({
     missions_total: 0,
     missions_nouvelles: 0,
-
     sources_total: 0,
     sources_actives: 0,
-
     profils_actifs: 0,
-
     candidatures_total: 0,
     candidatures_recentes: [],
 });
@@ -35,103 +21,50 @@ const stats = ref({
 const loading = ref(true);
 const error = ref(null);
 
-/*
-|--------------------------------------------------------------------------
-| Load dashboard
-|--------------------------------------------------------------------------
-*/
-
 const chargerDashboard = async () => {
     loading.value = true;
     error.value = null;
 
     try {
         const response =
-            await axios.get(
-                '/api/dashboard'
-            );
+            await axios.get('/api/dashboard');
 
-        stats.value =
-            response.data;
+        stats.value = response.data;
     } catch (err) {
         console.error(
-            'Erreur chargement dashboard :',
+            'Erreur dashboard :',
             err
         );
 
         error.value =
-            'Impossible de charger les données du dashboard.';
+            'Impossible de charger le dashboard.';
     } finally {
         loading.value = false;
     }
 };
 
-/*
-|--------------------------------------------------------------------------
-| Date
-|--------------------------------------------------------------------------
-*/
-
-const formaterDateCandidature = (
-    date
-) => {
+const formaterDateCandidature = (date) => {
     if (!date) {
-        return (
-            'Date non renseignée'
-        );
+        return 'Date non renseignée';
     }
 
     return new Intl.DateTimeFormat(
         'fr-FR',
         {
-            timeZone:
-                'Africa/Tunis',
-
+            timeZone: 'Africa/Tunis',
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
-
             hour: '2-digit',
             minute: '2-digit',
         }
-    ).format(
-        new Date(date)
-    );
+    ).format(new Date(date));
 };
-
-/*
-|--------------------------------------------------------------------------
-| Navigation actions
-|--------------------------------------------------------------------------
-*/
 
 const ouvrirDashboard = () => {
-    page.value =
-        'dashboard';
-
-    /*
-     * Recharge les statistiques afin
-     * de refléter les changements
-     * effectués dans Missions/Sources.
-     */
+    page.value = 'dashboard';
     chargerDashboard();
 };
-
-const ouvrirMissions = () => {
-    page.value =
-        'missions';
-};
-
-const ouvrirSources = () => {
-    page.value =
-        'sources';
-};
-
-/*
-|--------------------------------------------------------------------------
-| Mounted
-|--------------------------------------------------------------------------
-*/
 
 onMounted(() => {
     chargerDashboard();
@@ -139,14 +72,8 @@ onMounted(() => {
 </script>
 
 <template>
-    <div
-        class="min-h-screen bg-slate-50"
-    >
-
-        <!-- ========================================================= -->
-        <!-- HEADER -->
-        <!-- ========================================================= -->
-
+    <div class="min-h-screen bg-slate-50">
+        <!-- Header -->
         <header
             class="border-b border-slate-200 bg-white"
         >
@@ -175,80 +102,72 @@ onMounted(() => {
             </div>
         </header>
 
-        <!-- ========================================================= -->
-        <!-- NAVIGATION -->
-        <!-- ========================================================= -->
-
+        <!-- Navigation -->
         <nav
             class="border-b border-slate-200 bg-white"
         >
             <div
-                class="mx-auto flex max-w-7xl gap-2 px-6"
+                class="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-6"
             >
-
-                <!-- Dashboard -->
                 <button
                     type="button"
-                    class="border-b-2 px-4 py-4 text-sm font-semibold transition"
+                    class="whitespace-nowrap border-b-2 px-4 py-4 text-sm font-semibold transition"
                     :class="
                         page === 'dashboard'
                             ? 'border-slate-900 text-slate-900'
                             : 'border-transparent text-slate-500 hover:text-slate-900'
                     "
-                    @click="
-                        ouvrirDashboard
-                    "
+                    @click="ouvrirDashboard"
                 >
                     Dashboard
                 </button>
 
-                <!-- Missions -->
                 <button
                     type="button"
-                    class="border-b-2 px-4 py-4 text-sm font-semibold transition"
+                    class="whitespace-nowrap border-b-2 px-4 py-4 text-sm font-semibold transition"
                     :class="
                         page === 'missions'
                             ? 'border-slate-900 text-slate-900'
                             : 'border-transparent text-slate-500 hover:text-slate-900'
                     "
-                    @click="
-                        ouvrirMissions
-                    "
+                    @click="page = 'missions'"
                 >
                     Missions
                 </button>
 
-                <!-- Sources -->
                 <button
                     type="button"
-                    class="border-b-2 px-4 py-4 text-sm font-semibold transition"
+                    class="whitespace-nowrap border-b-2 px-4 py-4 text-sm font-semibold transition"
                     :class="
                         page === 'sources'
                             ? 'border-slate-900 text-slate-900'
                             : 'border-transparent text-slate-500 hover:text-slate-900'
                     "
-                    @click="
-                        ouvrirSources
-                    "
+                    @click="page = 'sources'"
                 >
                     Sources
                 </button>
 
+                <button
+                    type="button"
+                    class="whitespace-nowrap border-b-2 px-4 py-4 text-sm font-semibold transition"
+                    :class="
+                        page === 'profils'
+                            ? 'border-slate-900 text-slate-900'
+                            : 'border-transparent text-slate-500 hover:text-slate-900'
+                    "
+                    @click="page = 'profils'"
+                >
+                    Profils
+                </button>
             </div>
         </nav>
 
-        <!-- ========================================================= -->
-        <!-- DASHBOARD -->
-        <!-- ========================================================= -->
-
+        <!-- Dashboard -->
         <main
-            v-if="
-                page === 'dashboard'
-            "
+            v-if="page === 'dashboard'"
             class="mx-auto max-w-7xl px-6 py-10"
         >
-
-            <!-- Header -->
             <div class="mb-8">
                 <h2
                     class="text-3xl font-bold text-slate-900"
@@ -263,7 +182,6 @@ onMounted(() => {
                 </p>
             </div>
 
-            <!-- Loading -->
             <div
                 v-if="loading"
                 class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
@@ -271,7 +189,6 @@ onMounted(() => {
                 Chargement des données...
             </div>
 
-            <!-- Error -->
             <div
                 v-else-if="error"
                 class="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700"
@@ -279,15 +196,11 @@ onMounted(() => {
                 {{ error }}
             </div>
 
-            <!-- Dashboard -->
             <template v-else>
-
-                <!-- Stats -->
+                <!-- Statistics -->
                 <div
                     class="grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
                 >
-
-                    <!-- Missions -->
                     <div
                         class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
@@ -308,9 +221,7 @@ onMounted(() => {
                         <p
                             class="mt-3 text-3xl font-bold text-slate-900"
                         >
-                            {{
-                                stats.missions_total
-                            }}
+                            {{ stats.missions_total }}
                         </p>
 
                         <p
@@ -320,7 +231,6 @@ onMounted(() => {
                         </p>
                     </div>
 
-                    <!-- New -->
                     <div
                         class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
@@ -353,7 +263,6 @@ onMounted(() => {
                         </p>
                     </div>
 
-                    <!-- Sources -->
                     <div
                         class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
@@ -374,22 +283,17 @@ onMounted(() => {
                         <p
                             class="mt-3 text-3xl font-bold text-slate-900"
                         >
-                            {{
-                                stats.sources_total
-                            }}
+                            {{ stats.sources_total }}
                         </p>
 
                         <p
                             class="mt-2 text-xs text-slate-400"
                         >
-                            {{
-                                stats.sources_actives
-                            }}
+                            {{ stats.sources_actives }}
                             active(s)
                         </p>
                     </div>
 
-                    <!-- Profiles -->
                     <div
                         class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
@@ -410,9 +314,7 @@ onMounted(() => {
                         <p
                             class="mt-3 text-3xl font-bold text-slate-900"
                         >
-                            {{
-                                stats.profils_actifs
-                            }}
+                            {{ stats.profils_actifs }}
                         </p>
 
                         <p
@@ -422,7 +324,6 @@ onMounted(() => {
                         </p>
                     </div>
 
-                    <!-- Applications -->
                     <div
                         class="rounded-xl border border-purple-200 bg-white p-6 shadow-sm"
                     >
@@ -454,13 +355,9 @@ onMounted(() => {
                             Missions postulées
                         </p>
                     </div>
-
                 </div>
 
-                <!-- ================================================= -->
-                <!-- RECENT APPLICATIONS -->
-                <!-- ================================================= -->
-
+                <!-- Recent applications -->
                 <div
                     class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
                 >
@@ -477,49 +374,31 @@ onMounted(() => {
                             <p
                                 class="mt-1 text-sm text-slate-500"
                             >
-                                Dernières missions
-                                auxquelles vous avez postulé.
+                                Dernières missions auxquelles
+                                vous avez postulé.
                             </p>
                         </div>
 
-                        <div
+                        <span
                             class="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700"
                         >
                             {{
                                 stats.candidatures_total
                             }}
                             candidature(s)
-                        </div>
+                        </span>
                     </div>
 
-                    <!-- No applications -->
                     <div
                         v-if="
                             !stats.candidatures_recentes ||
                             stats.candidatures_recentes.length === 0
                         "
-                        class="px-6 py-12 text-center"
+                        class="px-6 py-12 text-center text-slate-500"
                     >
-                        <div class="text-3xl">
-                            📭
-                        </div>
-
-                        <p
-                            class="mt-3 font-medium text-slate-700"
-                        >
-                            Aucune candidature
-                        </p>
-
-                        <p
-                            class="mt-1 text-sm text-slate-500"
-                        >
-                            Les missions marquées
-                            comme "Postulé"
-                            apparaîtront ici.
-                        </p>
+                        Aucune candidature récente.
                     </div>
 
-                    <!-- Applications -->
                     <div v-else>
                         <div
                             v-for="
@@ -552,7 +431,7 @@ onMounted(() => {
                                     >
                                         {{
                                             application.entreprise
-                                                ||
+                                            ||
                                             'Entreprise non renseignée'
                                         }}
                                     </p>
@@ -591,7 +470,7 @@ onMounted(() => {
                                     "
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                                 >
                                     Open ↗
                                 </a>
@@ -600,130 +479,143 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- ================================================= -->
-                <!-- QUICK ACTIONS -->
-                <!-- ================================================= -->
-
+                <!-- Quick actions -->
                 <div
-                    class="mt-8 grid gap-6 md:grid-cols-3"
+                    class="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4"
                 >
-
-                    <!-- Missions -->
                     <div
                         class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
+                        <div class="text-2xl">
+                            📋
+                        </div>
+
                         <h3
-                            class="text-lg font-semibold text-slate-900"
+                            class="mt-3 text-lg font-semibold text-slate-900"
                         >
-                            Mission collection
+                            Missions
                         </h3>
 
                         <p
-                            class="mt-2 text-sm leading-6 text-slate-500"
+                            class="mt-2 text-sm text-slate-500"
                         >
-                            Consultez les opportunités,
-                            leurs scores et leur statut.
+                            Consultez et suivez les
+                            opportunités collectées.
                         </p>
 
                         <button
                             type="button"
-                            class="mt-5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                            @click="
-                                ouvrirMissions
-                            "
+                            class="mt-5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                            @click="page = 'missions'"
                         >
                             Voir les missions →
                         </button>
                     </div>
 
-                    <!-- Sources -->
                     <div
                         class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
+                        <div class="text-2xl">
+                            🌐
+                        </div>
+
                         <h3
-                            class="text-lg font-semibold text-slate-900"
+                            class="mt-3 text-lg font-semibold text-slate-900"
                         >
                             Sources
                         </h3>
 
                         <p
-                            class="mt-2 text-sm leading-6 text-slate-500"
+                            class="mt-2 text-sm text-slate-500"
                         >
-                            {{
-                                stats.sources_actives
-                            }}
-                            source(s) active(s)
-                            sur
-                            {{
-                                stats.sources_total
-                            }}.
+                            Gérez la collecte RemoteOK
+                            et We Work Remotely.
                         </p>
 
                         <button
                             type="button"
-                            class="mt-5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                            @click="
-                                ouvrirSources
-                            "
+                            class="mt-5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                            @click="page = 'sources'"
                         >
                             Gérer les sources →
                         </button>
                     </div>
 
-                    <!-- Backend -->
+                    <div
+                        class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+                    >
+                        <div class="text-2xl">
+                            🎯
+                        </div>
+
+                        <h3
+                            class="mt-3 text-lg font-semibold text-slate-900"
+                        >
+                            Profils
+                        </h3>
+
+                        <p
+                            class="mt-2 text-sm text-slate-500"
+                        >
+                            Configurez filtres, scoring
+                            et alertes.
+                        </p>
+
+                        <button
+                            type="button"
+                            class="mt-5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                            @click="page = 'profils'"
+                        >
+                            Gérer les profils →
+                        </button>
+                    </div>
+
                     <div
                         class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
                         <div
-                            class="flex items-start justify-between gap-4"
+                            class="flex items-start justify-between"
                         >
                             <div>
+                                <div class="text-2xl">
+                                    ⚙️
+                                </div>
+
                                 <h3
-                                    class="text-lg font-semibold text-slate-900"
+                                    class="mt-3 text-lg font-semibold text-slate-900"
                                 >
                                     Backend
                                 </h3>
 
                                 <p
-                                    class="mt-2 text-sm leading-6 text-slate-500"
+                                    class="mt-2 text-sm text-slate-500"
                                 >
                                     Laravel, Vue et MySQL
-                                    communiquent correctement.
+                                    fonctionnent correctement.
                                 </p>
                             </div>
 
                             <span
-                                class="whitespace-nowrap rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700"
+                                class="rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700"
                             >
                                 Connected ✓
                             </span>
                         </div>
                     </div>
-
                 </div>
-
             </template>
         </main>
 
-        <!-- ========================================================= -->
-        <!-- MISSIONS -->
-        <!-- ========================================================= -->
-
         <MissionsView
-            v-else-if="
-                page === 'missions'
-            "
+            v-else-if="page === 'missions'"
         />
-
-        <!-- ========================================================= -->
-        <!-- SOURCES -->
-        <!-- ========================================================= -->
 
         <SourcesView
-            v-else-if="
-                page === 'sources'
-            "
+            v-else-if="page === 'sources'"
         />
 
+        <ProfilsView
+            v-else-if="page === 'profils'"
+        />
     </div>
 </template>

@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MissionController;
 use App\Http\Controllers\SourceController;
+use App\Http\Controllers\ProfilRechercheController;
 
 Route::get('/api/dashboard', [
     DashboardController::class,
@@ -40,4 +41,20 @@ Route::patch('/api/sources/{source}', [
 Route::patch('/api/missions/{mission}/statut', [
     MissionController::class,
     'updateStatut',
+]);
+
+
+Route::get('/api/profils', [
+    ProfilRechercheController::class,
+    'index',
+]);
+
+Route::get('/api/profils/{profil}', [
+    ProfilRechercheController::class,
+    'show',
+]);
+
+Route::patch('/api/profils/{profil}', [
+    ProfilRechercheController::class,
+    'update',
 ]);
