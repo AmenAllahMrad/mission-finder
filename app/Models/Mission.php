@@ -62,4 +62,16 @@ public function sourceOccurrences(): HasMany
     return $this->hasMany(MissionSource::class);
 }
 
+public function scoresProfils(): HasMany
+{
+    return $this->hasMany(ScoreMissionProfil::class);
+}
+
+public function alertesEnvoyees(): HasMany
+{
+    return $this->hasMany(
+        AlerteMissionEnvoyee::class
+    );
+}
+
 }

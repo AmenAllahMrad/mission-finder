@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Alerte extends Model
 {
@@ -20,19 +21,24 @@ class Alerte extends Model
         'actif',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'seuil_score_min' => 'integer',
-            'actif' => 'boolean',
-        ];
-    }
+    protected $casts = [
+        'seuil_score_min' => 'integer',
+        'actif' => 'boolean',
+    ];
 
     public function profilRecherche(): BelongsTo
     {
         return $this->belongsTo(
             ProfilRecherche::class,
             'profil_recherche_id'
+        );
+    }
+
+    public function missionsEnvoyees(): HasMany
+    {
+        return $this->hasMany(
+            AlerteMissionEnvoyee::class,
+            'alerte_id'
         );
     }
 }
