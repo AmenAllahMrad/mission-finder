@@ -10,6 +10,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Throwable;
+use App\Scrapers\Contracts\SourceAwareParserInterface;
+use App\Scrapers\LinkedInEmailParser;
+
 
 class SourceController extends Controller
 {
@@ -22,6 +25,8 @@ class SourceController extends Controller
     private const PARSERS = [
         RemoteOkParser::class,
         WeWorkRemotelyParser::class,
+        LinkedInEmailParser::class,
+
     ];
 
     /*
@@ -79,6 +84,17 @@ class SourceController extends Controller
                 'type' =>
                     'rss',
             ],
+
+            [
+    'class' =>
+        LinkedInEmailParser::class,
+
+    'label' =>
+        'LinkedIn Email',
+
+    'type' =>
+        'email',
+],
         ]);
     }
 
@@ -292,6 +308,32 @@ class SourceController extends Controller
                         'Le parser ne respecte pas SourceParserInterface.',
                 ], 422);
             }
+
+            $parser = app($parserClass);
+
+if (
+    ! $parser instanceof
+        SourceParserInterface
+) {
+    return response()->json([
+        'success' => false,
+
+        'message' =>
+            'Le parser ne respecte pas SourceParserInterface.',
+    ], 422);
+}
+
+if (
+    $parser instanceof
+    SourceAwareParserInterface
+) {
+    $parser->setSource(
+        $source
+    );
+}
+
+$items =
+    $parser->fetch();
 
             /*
              * Récupération réelle.

@@ -248,47 +248,38 @@ const urlParParser = (
     );
 };
 
-const appliquerParserNouvelleSource =
-    () => {
-        const parser =
-            parsers.value.find(
-                (item) =>
-                    item.class ===
-                    nouvelleSource.value
-                        .parser_class
-            );
+const appliquerParserNouvelleSource = () => {
+    const parser =
+        parsers.value.find(
+            (item) =>
+                item.class ===
+                nouvelleSource.value.parser_class
+        );
 
-        if (!parser) {
-            return;
-        }
+    if (!parser) {
+        return;
+    }
 
-        nouvelleSource.value.type =
-            parser.type;
+    nouvelleSource.value.type =
+        parser.type;
 
-        const defaultUrl =
-            urlParParser(
-                parser.class
-            );
+    /*
+     * Change toujours l'URL lorsque
+     * le parser change.
+     *
+     * LinkedIn Email => URL vide
+     */
+    nouvelleSource.value.url_base =
+        urlParParser(
+            parser.class
+        );
 
-        if (defaultUrl) {
-            nouvelleSource.value
-                .url_base =
-                defaultUrl;
-        }
+    nouvelleSource.value.nom =
+        parser.label;
+};
 
-        if (
-            !nouvelleSource.value
-                .nom
-        ) {
-            nouvelleSource.value
-                .nom =
-                parser.label;
-        }
-    };
 
-const appliquerParserSource = (
-    source
-) => {
+const appliquerParserSource = (source) => {
     const parser =
         parsers.value.find(
             (item) =>
@@ -303,18 +294,10 @@ const appliquerParserSource = (
     source.type =
         parser.type;
 
-    const defaultUrl =
+    source.url_base =
         urlParParser(
             parser.class
         );
-
-    if (
-        defaultUrl &&
-        !source.url_base
-    ) {
-        source.url_base =
-            defaultUrl;
-    }
 };
 
 /*
