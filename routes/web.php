@@ -44,9 +44,19 @@ Route::patch('/api/missions/{mission}/statut', [
 ]);
 
 
+Route::get('/api/criteres', [
+    ProfilRechercheController::class,
+    'criteres',
+]);
+
 Route::get('/api/profils', [
     ProfilRechercheController::class,
     'index',
+]);
+
+Route::post('/api/profils', [
+    ProfilRechercheController::class,
+    'store',
 ]);
 
 Route::get('/api/profils/{profil}', [
@@ -57,4 +67,9 @@ Route::get('/api/profils/{profil}', [
 Route::patch('/api/profils/{profil}', [
     ProfilRechercheController::class,
     'update',
+]);
+
+Route::delete('/api/profils/{profil}', [
+    ProfilRechercheController::class,
+    'destroy',
 ]);

@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Alerte;
+use App\Models\AlerteMissionEnvoyee;
+use App\Models\Critere;
 use App\Models\Mission;
 use App\Models\ProfilRecherche;
 use App\Models\RegleFiltrage;
 use App\Models\RegleScoring;
+use App\Models\ScoreMissionProfil;
 use App\Services\MissionScoringService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ProfilRechercheController extends Controller
 {
@@ -32,14 +36,80 @@ class ProfilRechercheController extends Controller
             ->orderBy('nom')
             ->get();
 
-        return response()->json(
-            $profils
-        );
+        return response()->json($profils);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Détail d'un profil
+    | Liste des critères disponibles
+    |--------------------------------------------------------------------------
+    */
+
+    public function criteres(): JsonResponse
+    {
+        $criteres = Critere::query()
+            ->select([
+                'id',
+                'code',
+                'label',
+                'type',
+            ])
+            ->orderBy('label')
+            ->get();
+
+        return response()->json($criteres);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Créer un profil
+    |--------------------------------------------------------------------------
+    */
+
+    public function store(
+        Request $request
+    ): JsonResponse {
+        $validated = $request->validate([
+            'nom' => [
+                'required',
+                'string',
+                'max:255',
+                'unique:profils_recherche,nom',
+            ],
+
+            'actif' => [
+                'required',
+                'boolean',
+            ],
+        ]);
+
+        $profil = ProfilRecherche::create([
+            'nom' => $validated['nom'],
+            'actif' => $validated['actif'],
+        ]);
+
+        $profil->load([
+            'reglesFiltrage.critere',
+            'reglesScoring.critere',
+            'alertes',
+        ]);
+
+        $profil->loadCount(
+            'scoresMissions'
+        );
+
+        return response()->json([
+            'message' =>
+                'Profil créé avec succès.',
+
+            'profil' =>
+                $profil,
+        ], 201);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Détail
     |--------------------------------------------------------------------------
     */
 
@@ -63,7 +133,7 @@ class ProfilRechercheController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Modifier un profil
+    | Modifier le profil complet
     |--------------------------------------------------------------------------
     */
 
@@ -80,6 +150,11 @@ class ProfilRechercheController extends Controller
                 'required',
                 'string',
                 'max:255',
+
+                Rule::unique(
+                    'profils_recherche',
+                    'nom'
+                )->ignore($profil->id),
             ],
 
             'actif' => [
@@ -88,23 +163,33 @@ class ProfilRechercheController extends Controller
             ],
 
             /*
-             * Règles de filtrage
+             * Filtres
              */
             'regles_filtrage' => [
-                'sometimes',
+                'present',
                 'array',
             ],
 
             'regles_filtrage.*.id' => [
-                'required',
+                'nullable',
                 'integer',
-                'exists:regles_filtrage,id',
+            ],
+
+            'regles_filtrage.*.critere_id' => [
+                'nullable',
+                'integer',
+                'exists:criteres,id',
             ],
 
             'regles_filtrage.*.operateur' => [
                 'required',
-                'string',
-                'in:egal,contient,superieur_egal,inferieur_egal,dans',
+                Rule::in([
+                    'egal',
+                    'contient',
+                    'superieur_egal',
+                    'inferieur_egal',
+                    'dans',
+                ]),
             ],
 
             'regles_filtrage.*.valeur' => [
@@ -114,17 +199,22 @@ class ProfilRechercheController extends Controller
             ],
 
             /*
-             * Règles de scoring
+             * Scoring
              */
             'regles_scoring' => [
-                'sometimes',
+                'present',
                 'array',
             ],
 
             'regles_scoring.*.id' => [
-                'required',
+                'nullable',
                 'integer',
-                'exists:regles_scoring,id',
+            ],
+
+            'regles_scoring.*.critere_id' => [
+                'nullable',
+                'integer',
+                'exists:criteres,id',
             ],
 
             'regles_scoring.*.poids' => [
@@ -138,32 +228,37 @@ class ProfilRechercheController extends Controller
              * Alertes
              */
             'alertes' => [
-                'sometimes',
+                'present',
                 'array',
             ],
 
             'alertes.*.id' => [
-                'required',
+                'nullable',
                 'integer',
-                'exists:alertes,id',
             ],
 
             'alertes.*.canal' => [
                 'required',
-                'string',
-                'in:email,telegram,webhook',
-            ],
-
-            'alertes.*.frequence' => [
-                'required',
-                'string',
-                'in:immediate,daily,weekly',
+                Rule::in([
+                    'email',
+                    'telegram',
+                    'webhook',
+                ]),
             ],
 
             'alertes.*.destination' => [
                 'required',
                 'string',
                 'max:500',
+            ],
+
+            'alertes.*.frequence' => [
+                'required',
+                Rule::in([
+                    'immediate',
+                    'daily',
+                    'weekly',
+                ]),
             ],
 
             'alertes.*.seuil_score_min' => [
@@ -179,41 +274,40 @@ class ProfilRechercheController extends Controller
             ],
         ]);
 
-        DB::transaction(
-            function () use (
-                $profil,
-                $validated
+        DB::transaction(function () use (
+            $profil,
+            $validated
+        ) {
+            /*
+            |--------------------------------------------------------------------------
+            | Profil
+            |--------------------------------------------------------------------------
+            */
+
+            $profil->update([
+                'nom' =>
+                    $validated['nom'],
+
+                'actif' =>
+                    $validated['actif'],
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Synchronisation des règles de filtrage
+            |--------------------------------------------------------------------------
+            */
+
+            $idsFiltresConserves = [];
+
+            foreach (
+                $validated['regles_filtrage']
+                as $data
             ) {
                 /*
-                |--------------------------------------------------------------------------
-                | Profil
-                |--------------------------------------------------------------------------
-                */
-
-                $profil->update([
-                    'nom' =>
-                        $validated['nom'],
-
-                    'actif' =>
-                        $validated['actif'],
-                ]);
-
-                /*
-                |--------------------------------------------------------------------------
-                | Filtres
-                |--------------------------------------------------------------------------
-                */
-
-                foreach (
-                    $validated['regles_filtrage']
-                        ?? []
-                    as $regleData
-                ) {
-                    /*
-                     * Important :
-                     * on vérifie que la règle appartient
-                     * réellement au profil modifié.
-                     */
+                 * Modification d'une règle existante.
+                 */
+                if (! empty($data['id'])) {
                     $regle =
                         RegleFiltrage::query()
                             ->where(
@@ -221,33 +315,102 @@ class ProfilRechercheController extends Controller
                                 $profil->id
                             )
                             ->findOrFail(
-                                $regleData['id']
+                                $data['id']
                             );
 
                     $regle->update([
                         'operateur' =>
-                            $regleData[
-                                'operateur'
-                            ],
+                            $data['operateur'],
 
                         'valeur' =>
-                            $regleData[
-                                'valeur'
-                            ] ?? null,
+                            $data['valeur']
+                            ?? null,
                     ]);
+                } else {
+                    /*
+                     * Nouvelle règle.
+                     */
+                    if (
+                        empty(
+                            $data['critere_id']
+                        )
+                    ) {
+                        abort(
+                            422,
+                            'Un critère est requis pour une nouvelle règle de filtrage.'
+                        );
+                    }
+
+                    $regle =
+                        RegleFiltrage::updateOrCreate(
+                            [
+                                'profil_recherche_id' =>
+                                    $profil->id,
+
+                                'critere_id' =>
+                                    $data[
+                                        'critere_id'
+                                    ],
+                            ],
+                            [
+                                'operateur' =>
+                                    $data[
+                                        'operateur'
+                                    ],
+
+                                'valeur' =>
+                                    $data[
+                                        'valeur'
+                                    ] ?? null,
+                            ]
+                        );
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Scoring
-                |--------------------------------------------------------------------------
-                */
+                $idsFiltresConserves[] =
+                    $regle->id;
+            }
 
-                foreach (
-                    $validated['regles_scoring']
-                        ?? []
-                    as $regleData
-                ) {
+            /*
+             * Une règle absente du payload
+             * est considérée comme supprimée.
+             */
+            RegleFiltrage::query()
+                ->where(
+                    'profil_recherche_id',
+                    $profil->id
+                )
+                ->when(
+                    count(
+                        $idsFiltresConserves
+                    ) > 0,
+                    fn ($query) =>
+                        $query->whereNotIn(
+                            'id',
+                            $idsFiltresConserves
+                        )
+                )
+                ->when(
+                    count(
+                        $idsFiltresConserves
+                    ) === 0,
+                    fn ($query) =>
+                        $query
+                )
+                ->delete();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Synchronisation scoring
+            |--------------------------------------------------------------------------
+            */
+
+            $idsScoringConserves = [];
+
+            foreach (
+                $validated['regles_scoring']
+                as $data
+            ) {
+                if (! empty($data['id'])) {
                     $regle =
                         RegleScoring::query()
                             ->where(
@@ -255,28 +418,92 @@ class ProfilRechercheController extends Controller
                                 $profil->id
                             )
                             ->findOrFail(
-                                $regleData['id']
+                                $data['id']
                             );
 
                     $regle->update([
                         'poids' =>
-                            $regleData[
-                                'poids'
-                            ],
+                            $data['poids'],
                     ]);
+                } else {
+                    if (
+                        empty(
+                            $data['critere_id']
+                        )
+                    ) {
+                        abort(
+                            422,
+                            'Un critère est requis pour une nouvelle règle de scoring.'
+                        );
+                    }
+
+                    $regle =
+                        RegleScoring::updateOrCreate(
+                            [
+                                'profil_recherche_id' =>
+                                    $profil->id,
+
+                                'critere_id' =>
+                                    $data[
+                                        'critere_id'
+                                    ],
+                            ],
+                            [
+                                'poids' =>
+                                    $data[
+                                        'poids'
+                                    ],
+                            ]
+                        );
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Alertes
-                |--------------------------------------------------------------------------
-                */
+                $idsScoringConserves[] =
+                    $regle->id;
+            }
 
-                foreach (
-                    $validated['alertes']
-                        ?? []
-                    as $alerteData
-                ) {
+            RegleScoring::query()
+                ->where(
+                    'profil_recherche_id',
+                    $profil->id
+                )
+                ->when(
+                    count(
+                        $idsScoringConserves
+                    ) > 0,
+                    fn ($query) =>
+                        $query->whereNotIn(
+                            'id',
+                            $idsScoringConserves
+                        )
+                )
+                ->delete();
+
+            if (
+                count(
+                    $idsScoringConserves
+                ) === 0
+            ) {
+                RegleScoring::query()
+                    ->where(
+                        'profil_recherche_id',
+                        $profil->id
+                    )
+                    ->delete();
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Synchronisation alertes
+            |--------------------------------------------------------------------------
+            */
+
+            $idsAlertesConservees = [];
+
+            foreach (
+                $validated['alertes']
+                as $data
+            ) {
+                if (! empty($data['id'])) {
                     $alerte =
                         Alerte::query()
                             ->where(
@@ -284,47 +511,123 @@ class ProfilRechercheController extends Controller
                                 $profil->id
                             )
                             ->findOrFail(
-                                $alerteData['id']
+                                $data['id']
                             );
 
                     $alerte->update([
                         'canal' =>
-                            $alerteData[
-                                'canal'
-                            ],
+                            $data['canal'],
 
                         'destination' =>
-                            $alerteData[
+                            $data[
                                 'destination'
                             ],
 
                         'frequence' =>
-                            $alerteData[
+                            $data[
                                 'frequence'
                             ],
 
                         'seuil_score_min' =>
-                            $alerteData[
+                            $data[
                                 'seuil_score_min'
                             ],
 
                         'actif' =>
-                            $alerteData[
-                                'actif'
-                            ],
+                            $data['actif'],
                     ]);
+                } else {
+                    $alerte =
+                        Alerte::create([
+                            'profil_recherche_id' =>
+                                $profil->id,
+
+                            'canal' =>
+                                $data['canal'],
+
+                            'destination' =>
+                                $data[
+                                    'destination'
+                                ],
+
+                            'frequence' =>
+                                $data[
+                                    'frequence'
+                                ],
+
+                            'seuil_score_min' =>
+                                $data[
+                                    'seuil_score_min'
+                                ],
+
+                            'actif' =>
+                                $data['actif'],
+                        ]);
                 }
+
+                $idsAlertesConservees[] =
+                    $alerte->id;
             }
-        );
+
+            /*
+             * Alertes supprimées dans l'interface.
+             */
+            $alertesSupprimees =
+                Alerte::query()
+                    ->where(
+                        'profil_recherche_id',
+                        $profil->id
+                    )
+                    ->when(
+                        count(
+                            $idsAlertesConservees
+                        ) > 0,
+                        fn ($query) =>
+                            $query->whereNotIn(
+                                'id',
+                                $idsAlertesConservees
+                            )
+                    )
+                    ->pluck('id');
+
+            if (
+                count(
+                    $idsAlertesConservees
+                ) === 0
+            ) {
+                $alertesSupprimees =
+                    Alerte::query()
+                        ->where(
+                            'profil_recherche_id',
+                            $profil->id
+                        )
+                        ->pluck('id');
+            }
+
+            if (
+                $alertesSupprimees
+                    ->isNotEmpty()
+            ) {
+                AlerteMissionEnvoyee::query()
+                    ->whereIn(
+                        'alerte_id',
+                        $alertesSupprimees
+                    )
+                    ->delete();
+
+                Alerte::query()
+                    ->whereIn(
+                        'id',
+                        $alertesSupprimees
+                    )
+                    ->delete();
+            }
+        });
 
         /*
         |--------------------------------------------------------------------------
-        | Recalcul des scores
+        | Recalcul des scores du profil
         |--------------------------------------------------------------------------
-        |
-        | Si le poids ou les critères changent,
-        | les scores existants ne doivent pas rester obsolètes.
-        |
         */
 
         Mission::query()
@@ -336,7 +639,8 @@ class ProfilRechercheController extends Controller
                     $scoringService
                 ) {
                     foreach (
-                        $missions as $mission
+                        $missions
+                        as $mission
                     ) {
                         $scoringService
                             ->calculer(
@@ -349,7 +653,7 @@ class ProfilRechercheController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Retourner la configuration actualisée
+        | Retour API
         |--------------------------------------------------------------------------
         */
 
@@ -371,6 +675,92 @@ class ProfilRechercheController extends Controller
 
             'profil' =>
                 $profil,
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Suppression d'un profil
+    |--------------------------------------------------------------------------
+    */
+
+    public function destroy(
+        ProfilRecherche $profil
+    ): JsonResponse {
+        DB::transaction(function () use (
+            $profil
+        ) {
+            /*
+             * Traces d'alertes.
+             */
+            $idsAlertes =
+                Alerte::query()
+                    ->where(
+                        'profil_recherche_id',
+                        $profil->id
+                    )
+                    ->pluck('id');
+
+            if (
+                $idsAlertes->isNotEmpty()
+            ) {
+                AlerteMissionEnvoyee::query()
+                    ->whereIn(
+                        'alerte_id',
+                        $idsAlertes
+                    )
+                    ->delete();
+            }
+
+            /*
+             * Alertes.
+             */
+            Alerte::query()
+                ->where(
+                    'profil_recherche_id',
+                    $profil->id
+                )
+                ->delete();
+
+            /*
+             * Scores.
+             */
+            ScoreMissionProfil::query()
+                ->where(
+                    'profil_recherche_id',
+                    $profil->id
+                )
+                ->delete();
+
+            /*
+             * Scoring.
+             */
+            RegleScoring::query()
+                ->where(
+                    'profil_recherche_id',
+                    $profil->id
+                )
+                ->delete();
+
+            /*
+             * Filtres.
+             */
+            RegleFiltrage::query()
+                ->where(
+                    'profil_recherche_id',
+                    $profil->id
+                )
+                ->delete();
+
+            /*
+             * Profil.
+             */
+            $profil->delete();
+        });
+
+        return response()->json([
+            'message' =>
+                'Profil supprimé avec succès.',
         ]);
     }
 }
