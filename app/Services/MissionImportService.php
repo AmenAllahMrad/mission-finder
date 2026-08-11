@@ -7,6 +7,8 @@ use App\Models\MissionSource;
 use App\Models\Source;
 use App\Models\Stack;
 use Illuminate\Support\Str;
+use App\Jobs\ProcessMissionAlertsJob;
+
 
 class MissionImportService
 {
@@ -119,13 +121,19 @@ class MissionImportService
             $stackIds[] = $stack->id;
         }
 
-        $mission->stacks()->syncWithoutDetaching($stackIds);
+       $mission->stacks()->syncWithoutDetaching($stackIds);
 
-        $mission->refresh();
+$mission->refresh();
 
-        $this->scoringService->calculerPourProfilsActifs($mission);
+$this->scoringService->calculerPourProfilsActifs($mission);
 
-        return $mission->refresh();
+/*
+ * Les alertes sont traitées dans un job indépendant.
+ * Une panne email ne doit jamais bloquer la collecte.
+ */
+ProcessMissionAlertsJob::dispatch($mission->id);
+
+return $mission->refresh();
     }
 
     private function normaliserTexte(?string $texte): string
