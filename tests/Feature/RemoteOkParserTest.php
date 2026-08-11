@@ -12,7 +12,9 @@ class RemoteOkParserTest extends TestCase
     {
         $payload = json_decode(
             file_get_contents(
-                base_path('tests/Fixtures/remoteok.json')
+                base_path(
+                    'tests/Fixtures/remoteok.json'
+                )
             ),
             true
         );
@@ -21,7 +23,10 @@ class RemoteOkParserTest extends TestCase
             '*' => Http::response(
                 $payload,
                 200,
-                ['Content-Type' => 'application/json']
+                [
+                    'Content-Type' =>
+                        'application/json',
+                ]
             ),
         ]);
 
@@ -29,6 +34,9 @@ class RemoteOkParserTest extends TestCase
 
         $items = $parser->fetch();
 
+        /*
+         * Le premier objet metadata doit être supprimé.
+         */
         $this->assertCount(1, $items);
 
         $this->assertSame(
@@ -46,7 +54,9 @@ class RemoteOkParserTest extends TestCase
     {
         $payload = json_decode(
             file_get_contents(
-                base_path('tests/Fixtures/remoteok.json')
+                base_path(
+                    'tests/Fixtures/remoteok.json'
+                )
             ),
             true
         );
@@ -55,7 +65,9 @@ class RemoteOkParserTest extends TestCase
 
         $parser = new RemoteOkParser();
 
-        $mission = $parser->normaliser($rawJob);
+        $mission = $parser->normaliser(
+            $rawJob
+        );
 
         $this->assertSame(
             'Senior Laravel Developer',
@@ -87,14 +99,138 @@ class RemoteOkParserTest extends TestCase
             $mission['url_origine']
         );
 
+        /*
+         * Ces tags sont présents dans le contenu
+         * de la mission, donc ils doivent être conservés.
+         */
         $this->assertSame(
-            ['PHP', 'Laravel', 'API'],
+            [
+                'PHP',
+                'Laravel',
+                'API',
+            ],
             $mission['stacks']
         );
 
+        /*
+         * Les données RemoteOK originales
+         * doivent rester intactes.
+         */
         $this->assertSame(
             $rawJob,
             $mission['raw_data']
+        );
+    }
+
+    public function test_normaliser_ignores_remoteok_tags_not_supported_by_job_content(): void
+    {
+        $rawJob = [
+            'id' => '999',
+            'position' => 'Labourers',
+            'company' => 'Simmons Civil',
+
+            'description' =>
+                'Civil construction and maintenance work in Gladstone.',
+
+            'location' => 'Gladstone',
+
+            'date' =>
+                '2026-08-05T10:00:00+00:00',
+
+            'url' =>
+                'https://remoteok.com/test-job',
+
+            /*
+             * On reproduit volontairement le problème
+             * rencontré dans les vraies données RemoteOK.
+             */
+            'tags' => [
+                'laravel',
+                'golang',
+                'shopify',
+                'construction',
+            ],
+        ];
+
+        $parser = new RemoteOkParser();
+
+        $mission = $parser->normaliser(
+            $rawJob
+        );
+
+        /*
+         * Ces technologies ne sont jamais mentionnées
+         * dans le titre ni dans la description.
+         */
+        $this->assertNotContains(
+            'laravel',
+            $mission['stacks']
+        );
+
+        $this->assertNotContains(
+            'golang',
+            $mission['stacks']
+        );
+
+        $this->assertNotContains(
+            'shopify',
+            $mission['stacks']
+        );
+
+        /*
+         * Construction est réellement mentionné
+         * dans la description.
+         */
+        $this->assertContains(
+            'construction',
+            $mission['stacks']
+        );
+
+        /*
+         * Même les tags rejetés doivent rester
+         * disponibles dans raw_data.
+         */
+        $this->assertSame(
+            $rawJob,
+            $mission['raw_data']
+        );
+    }
+
+    public function test_short_tag_does_not_match_inside_another_word(): void
+    {
+        $rawJob = [
+            'id' => '1000',
+            'position' => 'Operations Manager',
+            'company' => 'Acme Corp',
+
+            'description' =>
+                'Manage ongoing business operations.',
+
+            'location' => 'Europe',
+
+            'date' =>
+                '2026-08-10T10:00:00+00:00',
+
+            'url' =>
+                'https://remoteok.com/test-go',
+
+            'tags' => [
+                'go',
+            ],
+        ];
+
+        $parser = new RemoteOkParser();
+
+        $mission = $parser->normaliser(
+            $rawJob
+        );
+
+        /*
+         * "go" ne doit pas matcher le mot "ongoing".
+         */
+        $this->assertNotContains(
+            'go',
+            $mission['stacks']
         );
     }
 }
