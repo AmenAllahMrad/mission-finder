@@ -27,14 +27,34 @@ Route::get('/api/missions/{mission}', [
 
 
 
+Route::get('/api/source-parsers', [
+    SourceController::class,
+    'parsers',
+]);
+
 Route::get('/api/sources', [
     SourceController::class,
     'index',
 ]);
 
+Route::post('/api/sources', [
+    SourceController::class,
+    'store',
+]);
+
 Route::patch('/api/sources/{source}', [
     SourceController::class,
     'update',
+]);
+
+Route::post('/api/sources/{source}/test', [
+    SourceController::class,
+    'tester',
+]);
+
+Route::delete('/api/sources/{source}', [
+    SourceController::class,
+    'destroy',
 ]);
 
 
