@@ -20,7 +20,7 @@ class MissionImportServiceTest extends TestCase
             'App\\Scrapers\\RemoteOkParser'
         );
 
-        $service = new MissionImportService();
+$service = app(MissionImportService::class);
 
         $data = $this->missionData();
 
@@ -73,7 +73,7 @@ class MissionImportServiceTest extends TestCase
             'rss'
         );
 
-        $service = new MissionImportService();
+        $service = app(MissionImportService::class);
 
         $data = $this->missionData();
 
@@ -125,7 +125,7 @@ class MissionImportServiceTest extends TestCase
             'rss'
         );
 
-        $service = new MissionImportService();
+        $service = app(MissionImportService::class);
 
         $data = $this->missionData();
 
@@ -168,6 +168,74 @@ class MissionImportServiceTest extends TestCase
             $stacks
         );
     }
+
+    public function test_imported_mission_is_scored_automatically_for_active_profiles(): void
+{
+    $source = $this->createSource(
+        'RemoteOK',
+        'App\\Scrapers\\RemoteOkParser'
+    );
+
+    $stackCritere = \App\Models\Critere::create([
+        'code' => 'stack',
+        'label' => 'Stack technique',
+        'type' => 'texte',
+    ]);
+
+    $remoteCritere = \App\Models\Critere::create([
+        'code' => 'remote',
+        'label' => 'Type de remote',
+        'type' => 'liste',
+    ]);
+
+    $profil = \App\Models\ProfilRecherche::create([
+        'nom' => 'Laravel Remote',
+        'actif' => true,
+    ]);
+
+    \App\Models\RegleFiltrage::create([
+        'profil_recherche_id' => $profil->id,
+        'critere_id' => $stackCritere->id,
+        'operateur' => 'contient',
+        'valeur' => 'Laravel',
+    ]);
+
+    \App\Models\RegleFiltrage::create([
+        'profil_recherche_id' => $profil->id,
+        'critere_id' => $remoteCritere->id,
+        'operateur' => 'egal',
+        'valeur' => 'full_remote',
+    ]);
+
+    \App\Models\RegleScoring::create([
+        'profil_recherche_id' => $profil->id,
+        'critere_id' => $stackCritere->id,
+        'poids' => 3,
+    ]);
+
+    \App\Models\RegleScoring::create([
+        'profil_recherche_id' => $profil->id,
+        'critere_id' => $remoteCritere->id,
+        'poids' => 2,
+    ]);
+
+    $service = app(MissionImportService::class);
+
+    $mission = $service->importer(
+        $source,
+        $this->missionData()
+    );
+
+    $this->assertDatabaseHas(
+        'scores_missions_profils',
+        [
+            'mission_id' => $mission->id,
+            'profil_recherche_id' => $profil->id,
+            'score' => 5,
+        ]
+    );
+}
+
 
     private function createSource(
         string $nom,

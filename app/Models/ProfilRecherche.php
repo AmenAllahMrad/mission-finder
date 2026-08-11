@@ -38,4 +38,21 @@ class ProfilRecherche extends Model
             'profil_recherche_id'
         );
     }
+
+    public function alertes(): HasMany
+{
+    return $this->hasMany(
+        Alerte::class,
+        'profil_recherche_id'
+    );
+}
+
+public function scoresMissions(): HasMany
+{
+    return $this->hasMany(
+        ScoreMissionProfil::class,
+        'profil_recherche_id'
+    );
+}
+
 }

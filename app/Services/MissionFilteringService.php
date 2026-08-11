@@ -25,7 +25,7 @@ class MissionFilteringService
         return true;
     }
 
-    private function respecteRegle(
+    public function respecteRegle(
         Mission $mission,
         RegleFiltrage $regle
     ): bool {

@@ -10,6 +10,11 @@ use Illuminate\Support\Str;
 
 class MissionImportService
 {
+    public function __construct(
+    private MissionScoringService $scoringService
+) {
+}
+
     public function importer(Source $source, array $data): Mission
     {
         $titreNormalise = $this->normaliserTexte($data['titre'] ?? '');
@@ -115,6 +120,10 @@ class MissionImportService
         }
 
         $mission->stacks()->syncWithoutDetaching($stackIds);
+
+        $mission->refresh();
+
+        $this->scoringService->calculerPourProfilsActifs($mission);
 
         return $mission->refresh();
     }
