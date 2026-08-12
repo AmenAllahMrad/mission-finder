@@ -239,6 +239,9 @@ const urlParParser = (
 
         'App\\Scrapers\\WeWorkRemotelyParser':
             'https://weworkremotely.com/remote-jobs.rss',
+
+        'App\\Scrapers\\FreeWorkParser':
+            'https://www.free-work.com/fr/tech-it/jobs?contracts=contractor',
     };
 
     return (
@@ -277,7 +280,6 @@ const appliquerParserNouvelleSource = () => {
     nouvelleSource.value.nom =
         parser.label;
 };
-
 
 const appliquerParserSource = (source) => {
     const parser =
@@ -1759,6 +1761,8 @@ onMounted(() => {
                     </button>
                 </div>
 
+                <!-- Test status -->
+
                 <div
                     class="mt-6 rounded-xl p-5"
                     :class="
@@ -1791,6 +1795,8 @@ onMounted(() => {
                     </p>
                 </div>
 
+                <!-- Test stats -->
+
                 <div
                     class="mt-5 grid gap-4 sm:grid-cols-2"
                 >
@@ -1819,7 +1825,7 @@ onMounted(() => {
                         <p
                             class="text-xs font-semibold uppercase text-slate-400"
                         >
-                            Durée
+                            Durée du test
                         </p>
 
                         <p
@@ -1833,6 +1839,8 @@ onMounted(() => {
                         </p>
                     </div>
                 </div>
+
+                <!-- Sample -->
 
                 <div
                     v-if="
@@ -1864,6 +1872,8 @@ onMounted(() => {
                             'Entreprise non renseignée'
                         }}
                     </p>
+
+                    <!-- Mission metadata -->
 
                     <div
                         class="mt-4 grid gap-3 sm:grid-cols-2"
@@ -1915,7 +1925,79 @@ onMounted(() => {
                                 '—'
                             }}
                         </p>
+
+                        <!-- TJM -->
+
+                        <p class="text-sm">
+                            <strong>
+                                TJM :
+                            </strong>
+
+                            <template
+                                v-if="
+                                    resultatTest.sample.tjm_min !== null &&
+                                    resultatTest.sample.tjm_min !== undefined
+                                "
+                            >
+                                {{
+                                    resultatTest.sample
+                                        .tjm_min
+                                }}
+
+                                <template
+                                    v-if="
+                                        resultatTest.sample.tjm_max !== null &&
+                                        resultatTest.sample.tjm_max !== undefined &&
+                                        Number(
+                                            resultatTest.sample.tjm_max
+                                        ) !==
+                                            Number(
+                                                resultatTest.sample.tjm_min
+                                            )
+                                    "
+                                >
+                                    -
+                                    {{
+                                        resultatTest.sample
+                                            .tjm_max
+                                    }}
+                                </template>
+
+                                €/j
+                            </template>
+
+                            <template v-else>
+                                —
+                            </template>
+                        </p>
+
+                        <!-- Mission duration -->
+
+                        <p class="text-sm">
+                            <strong>
+                                Durée :
+                            </strong>
+
+                            <template
+                                v-if="
+                                    resultatTest.sample.duree_mois !== null &&
+                                    resultatTest.sample.duree_mois !== undefined
+                                "
+                            >
+                                {{
+                                    resultatTest.sample
+                                        .duree_mois
+                                }}
+                                mois
+                            </template>
+
+                            <template v-else>
+                                —
+                            </template>
+                        </p>
                     </div>
+
+                    <!-- Stacks -->
 
                     <div
                         v-if="
@@ -1936,6 +2018,8 @@ onMounted(() => {
                             {{ stack }}
                         </span>
                     </div>
+
+                    <!-- Description -->
 
                     <p
                         v-if="

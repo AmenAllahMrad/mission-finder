@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
 use Throwable;
 use App\Scrapers\Contracts\SourceAwareParserInterface;
 use App\Scrapers\LinkedInEmailParser;
+use App\Scrapers\FreeWorkParser;
 
 
 class SourceController extends Controller
@@ -23,11 +24,11 @@ class SourceController extends Controller
     */
 
     private const PARSERS = [
-        RemoteOkParser::class,
-        WeWorkRemotelyParser::class,
-        LinkedInEmailParser::class,
-
-    ];
+    RemoteOkParser::class,
+    WeWorkRemotelyParser::class,
+    LinkedInEmailParser::class,
+    FreeWorkParser::class,
+];
 
     /*
     |--------------------------------------------------------------------------
@@ -94,6 +95,17 @@ class SourceController extends Controller
 
     'type' =>
         'email',
+],
+
+[
+    'class' =>
+        FreeWorkParser::class,
+
+    'label' =>
+        'Free-Work',
+
+    'type' =>
+        'html',
 ],
         ]);
     }
