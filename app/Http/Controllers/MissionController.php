@@ -24,7 +24,36 @@ class MissionController extends Controller
             100
         );
 
+        /*
+         * IMPORTANT :
+         *
+         * On ne récupère pas raw_data ni la description
+         * dans la liste principale.
+         *
+         * raw_data Free-Work peut contenir beaucoup de HTML
+         * et provoquer une consommation mémoire importante
+         * lors du tri MySQL.
+         *
+         * Ces informations restent disponibles
+         * dans show() lorsqu'on ouvre une mission.
+         */
         $query = Mission::query()
+            ->select([
+                'id',
+                'source_id',
+                'titre',
+                'entreprise',
+                'tjm_min',
+                'tjm_max',
+                'remote_type',
+                'localisation',
+                'secteur',
+                'duree_mois',
+                'date_publication',
+                'url_origine',
+                'statut',
+                'date_candidature',
+            ])
             ->with([
                 'source:id,nom',
                 'stacks:id,nom',
@@ -35,6 +64,10 @@ class MissionController extends Controller
         |--------------------------------------------------------------------------
         | Recherche
         |--------------------------------------------------------------------------
+        |
+        | On peut rechercher dans description
+        | sans retourner description dans le SELECT.
+        |
         */
 
         if ($request->filled('search')) {
@@ -44,30 +77,33 @@ class MissionController extends Controller
                     ->toString()
             );
 
-            $query->where(
-                function ($q) use ($search) {
-                    $q->where(
-                        'titre',
-                        'like',
-                        "%{$search}%"
-                    )
-                        ->orWhere(
-                            'entreprise',
-                            'like',
-                            "%{$search}%"
-                        )
-                        ->orWhere(
-                            'description',
-                            'like',
-                            "%{$search}%"
-                        );
-                }
-            );
+            if ($search !== '') {
+                $query->where(
+                    function ($q) use ($search) {
+                        $q
+                            ->where(
+                                'titre',
+                                'like',
+                                "%{$search}%"
+                            )
+                            ->orWhere(
+                                'entreprise',
+                                'like',
+                                "%{$search}%"
+                            )
+                            ->orWhere(
+                                'description',
+                                'like',
+                                "%{$search}%"
+                            );
+                    }
+                );
+            }
         }
 
         /*
         |--------------------------------------------------------------------------
-        | Statut
+        | Filtre statut
         |--------------------------------------------------------------------------
         */
 
@@ -82,7 +118,7 @@ class MissionController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Remote
+        | Filtre remote
         |--------------------------------------------------------------------------
         */
 
@@ -97,22 +133,26 @@ class MissionController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Source
+        | Filtre source
         |--------------------------------------------------------------------------
         */
 
         if ($request->filled('source_id')) {
-            $query->where(
-                'source_id',
-                (int) $request->input(
-                    'source_id'
-                )
+            $sourceId = (int) $request->input(
+                'source_id'
             );
+
+            if ($sourceId > 0) {
+                $query->where(
+                    'source_id',
+                    $sourceId
+                );
+            }
         }
 
         /*
         |--------------------------------------------------------------------------
-        | Pagination
+        | Pagination + tri
         |--------------------------------------------------------------------------
         */
 
@@ -130,22 +170,26 @@ class MissionController extends Controller
     |--------------------------------------------------------------------------
     | Détail d'une mission
     |--------------------------------------------------------------------------
+    |
+    | Ici, Laravel charge la mission complète.
+    | raw_data et description restent disponibles.
+    |
     */
 
-  public function show(
-    Mission $mission
-): JsonResponse {
-    $mission->load([
-        'source:id,nom',
-        'stacks:id,nom',
-        'scoresProfils',
-        'sourceOccurrences.source:id,nom',
-    ]);
+    public function show(
+        Mission $mission
+    ): JsonResponse {
+        $mission->load([
+            'source:id,nom',
+            'stacks:id,nom',
+            'scoresProfils',
+            'sourceOccurrences.source:id,nom',
+        ]);
 
-    return response()->json([
-        'mission' => $mission,
-    ]);
-}
+        return response()->json([
+            'mission' => $mission,
+        ]);
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -157,24 +201,23 @@ class MissionController extends Controller
         Request $request,
         Mission $mission
     ): JsonResponse {
-        $validated =
-            $request->validate([
-                'statut' => [
-                    'required',
-                    'in:nouveau,vu,interessant,ecarte,postule',
-                ],
-            ]);
+        $validated = $request->validate([
+            'statut' => [
+                'required',
+                'in:nouveau,vu,interessant,ecarte,postule',
+            ],
+        ]);
 
         $mission->statut =
             $validated['statut'];
 
         /*
          * Lors du premier passage à "postule",
-         * on enregistre la date.
+         * on conserve la date de candidature.
          */
         if (
-            $validated['statut']
-            === 'postule'
+            $validated['statut'] ===
+            'postule'
         ) {
             $mission->date_candidature =
                 $mission->date_candidature
