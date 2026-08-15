@@ -28,11 +28,12 @@ const successMessage = ref(null);
 
 /*
 |--------------------------------------------------------------------------
-| New profile modal
+| Create modal
 |--------------------------------------------------------------------------
 */
 
-const modalCreationOuvert = ref(false);
+const modalCreationOuvert =
+    ref(false);
 
 const nouveauProfil = ref({
     nom: '',
@@ -52,22 +53,69 @@ const clone = (value) => {
 };
 
 const critereParId = (id) => {
-    return criteres.value.find(
-        (critere) =>
-            Number(critere.id) === Number(id)
-    ) ?? null;
-};
-
-const hydrateRegleCritere = (regle) => {
-    regle.critere =
-        critereParId(
-            regle.critere_id
-        );
+    return (
+        criteres.value.find(
+            (critere) =>
+                Number(critere.id) ===
+                Number(id)
+        )
+        ?? null
+    );
 };
 
 /*
 |--------------------------------------------------------------------------
-| Computed
+| Global stats
+|--------------------------------------------------------------------------
+*/
+
+const profilsActifs = computed(() => {
+    return profils.value.filter(
+        (profil) =>
+            Boolean(
+                profil.actif
+            )
+    ).length;
+});
+
+const totalFiltres = computed(() => {
+    return profils.value.reduce(
+        (total, profil) =>
+            total
+            +
+            (
+                profil.regles_filtrage
+                    ?.length
+                ?? 0
+            ),
+        0
+    );
+});
+
+const totalAlertesActives =
+    computed(() => {
+        return profils.value.reduce(
+            (total, profil) =>
+                total
+                +
+                (
+                    profil.alertes
+                        ?.filter(
+                            (alerte) =>
+                                Boolean(
+                                    alerte.actif
+                                )
+                        )
+                        .length
+                    ?? 0
+                ),
+            0
+        );
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Selected profile stats
 |--------------------------------------------------------------------------
 */
 
@@ -83,9 +131,11 @@ const scoreMaximum = computed(() => {
         .regles_scoring
         .reduce(
             (total, regle) =>
-                total +
+                total
+                +
                 Number(
-                    regle.poids || 0
+                    regle.poids
+                    || 0
                 ),
             0
         );
@@ -95,31 +145,114 @@ const nombreFiltres = computed(() => {
     return (
         profilSelectionne.value
             ?.regles_filtrage
-            ?.length ?? 0
+            ?.length
+        ?? 0
     );
 });
 
+const nombreScorings =
+    computed(() => {
+        return (
+            profilSelectionne.value
+                ?.regles_scoring
+                ?.length
+            ?? 0
+        );
+    });
+
+const nombreAlertes =
+    computed(() => {
+        return (
+            profilSelectionne.value
+                ?.alertes
+                ?.length
+            ?? 0
+        );
+    });
+
 const nombreAlertesActives =
     computed(() => {
-        if (
-            !profilSelectionne.value
+        return (
+            profilSelectionne.value
                 ?.alertes
+                ?.filter(
+                    (alerte) =>
+                        Boolean(
+                            alerte.actif
+                        )
+                )
+                .length
+            ?? 0
+        );
+    });
+
+const modulesConfigures =
+    computed(() => {
+        let total = 0;
+
+        if (
+            nombreFiltres.value > 0
         ) {
-            return 0;
+            total++;
         }
 
-        return profilSelectionne.value
-            .alertes
-            .filter(
-                (alerte) =>
-                    alerte.actif
-            )
-            .length;
+        if (
+            nombreScorings.value > 0
+        ) {
+            total++;
+        }
+
+        if (
+            nombreAlertes.value > 0
+        ) {
+            total++;
+        }
+
+        return total;
     });
 
 /*
 |--------------------------------------------------------------------------
-| Load data
+| Profile list helpers
+|--------------------------------------------------------------------------
+*/
+
+const scoreMaximumProfil =
+    (profil) => {
+        return (
+            profil.regles_scoring
+                ?.reduce(
+                    (total, regle) =>
+                        total
+                        +
+                        Number(
+                            regle.poids
+                            || 0
+                        ),
+                    0
+                )
+            ?? 0
+        );
+    };
+
+const alertesActivesProfil =
+    (profil) => {
+        return (
+            profil.alertes
+                ?.filter(
+                    (alerte) =>
+                        Boolean(
+                            alerte.actif
+                        )
+                )
+                .length
+            ?? 0
+        );
+    };
+
+/*
+|--------------------------------------------------------------------------
+| Load
 |--------------------------------------------------------------------------
 */
 
@@ -142,10 +275,6 @@ const chargerProfils = async () => {
     profils.value =
         response.data;
 
-    /*
-     * Conserve le profil sélectionné
-     * si possible.
-     */
     if (
         profilSelectionne.value
     ) {
@@ -196,7 +325,8 @@ const chargerDonnees = async () => {
         error.value =
             'Impossible de charger les profils.';
     } finally {
-        loading.value = false;
+        loading.value =
+            false;
     }
 };
 
@@ -206,19 +336,43 @@ const chargerDonnees = async () => {
 |--------------------------------------------------------------------------
 */
 
-const selectionnerProfil = (
-    profil
-) => {
-    profilSelectionne.value =
-        clone(profil);
+const selectionnerProfil =
+    (profil) => {
+        profilSelectionne.value =
+            clone(
+                profil
+            );
 
-    error.value = null;
-    successMessage.value = null;
-};
+        error.value =
+            null;
+
+        successMessage.value =
+            null;
+    };
 
 /*
 |--------------------------------------------------------------------------
-| Create profile
+| Success helper
+|--------------------------------------------------------------------------
+*/
+
+const afficherSucces =
+    (message) => {
+        successMessage.value =
+            message;
+
+        setTimeout(
+            () => {
+                successMessage.value =
+                    null;
+            },
+            4000
+        );
+    };
+
+/*
+|--------------------------------------------------------------------------
+| Create
 |--------------------------------------------------------------------------
 */
 
@@ -232,7 +386,8 @@ const ouvrirCreationProfil =
         modalCreationOuvert.value =
             true;
 
-        error.value = null;
+        error.value =
+            null;
     };
 
 const fermerCreationProfil =
@@ -243,7 +398,8 @@ const fermerCreationProfil =
 
 const creerProfil = async () => {
     const nom =
-        nouveauProfil.value.nom
+        nouveauProfil.value
+            .nom
             .trim();
 
     if (!nom) {
@@ -253,8 +409,11 @@ const creerProfil = async () => {
         return;
     }
 
-    creating.value = true;
-    error.value = null;
+    creating.value =
+        true;
+
+    error.value =
+        null;
 
     try {
         const response =
@@ -262,6 +421,7 @@ const creerProfil = async () => {
                 '/api/profils',
                 {
                     nom,
+
                     actif:
                         Boolean(
                             nouveauProfil
@@ -292,8 +452,9 @@ const creerProfil = async () => {
         modalCreationOuvert.value =
             false;
 
-        successMessage.value =
-            'Profil créé avec succès. Vous pouvez maintenant ajouter ses filtres, son scoring et ses alertes.';
+        afficherSucces(
+            'Profil créé avec succès. Configurez maintenant ses filtres, son scoring et ses alertes.'
+        );
     } catch (err) {
         console.error(
             'Erreur création profil :',
@@ -301,26 +462,25 @@ const creerProfil = async () => {
         );
 
         if (
-            err.response?.status ===
-            422
+            err.response
+                ?.status === 422
         ) {
             const errors =
-                err.response.data
+                err.response
+                    .data
                     ?.errors;
 
-            if (errors?.nom?.[0]) {
-                error.value =
-                    errors.nom[0];
-            } else {
-                error.value =
-                    'Impossible de créer le profil.';
-            }
+            error.value =
+                errors?.nom?.[0]
+                ??
+                'Impossible de créer le profil.';
         } else {
             error.value =
                 'Impossible de créer le profil.';
         }
     } finally {
-        creating.value = false;
+        creating.value =
+            false;
     }
 };
 
@@ -347,11 +507,15 @@ const supprimerProfil =
             return;
         }
 
-        deleting.value = true;
-        error.value = null;
+        deleting.value =
+            true;
+
+        error.value =
+            null;
 
         const profilId =
-            profilSelectionne.value.id;
+            profilSelectionne
+                .value.id;
 
         try {
             await axios.delete(
@@ -366,8 +530,8 @@ const supprimerProfil =
                 );
 
             if (
-                profils.value.length >
-                0
+                profils.value.length
+                > 0
             ) {
                 selectionnerProfil(
                     profils.value[0]
@@ -377,8 +541,9 @@ const supprimerProfil =
                     null;
             }
 
-            successMessage.value =
-                'Profil supprimé avec succès.';
+            afficherSucces(
+                'Profil supprimé avec succès.'
+            );
         } catch (err) {
             console.error(
                 'Erreur suppression profil :',
@@ -388,7 +553,8 @@ const supprimerProfil =
             error.value =
                 'Impossible de supprimer ce profil.';
         } finally {
-            deleting.value = false;
+            deleting.value =
+                false;
         }
     };
 
@@ -398,21 +564,22 @@ const supprimerProfil =
 |--------------------------------------------------------------------------
 */
 
-const critereDejaDansFiltres = (
-    critereId
-) => {
-    return profilSelectionne.value
-        .regles_filtrage
-        .some(
-            (regle) =>
-                Number(
-                    regle.critere_id
-                ) ===
-                Number(
-                    critereId
-                )
-        );
-};
+const critereDejaDansFiltres =
+    (critereId) => {
+        return profilSelectionne
+            .value
+            .regles_filtrage
+            .some(
+                (regle) =>
+                    Number(
+                        regle.critere_id
+                    )
+                    ===
+                    Number(
+                        critereId
+                    )
+            );
+    };
 
 const criteresFiltresDisponibles =
     () => {
@@ -424,38 +591,40 @@ const criteresFiltresDisponibles =
         );
     };
 
-const operateurParDefaut = (
-    critere
-) => {
-    if (
-        critere?.type ===
-        'nombre'
-    ) {
-        return 'superieur_egal';
-    }
+const operateurParDefaut =
+    (critere) => {
+        if (
+            critere?.type ===
+            'nombre'
+        ) {
+            return (
+                'superieur_egal'
+            );
+        }
 
-    if (
-        critere?.code ===
-        'remote'
-    ) {
-        return 'egal';
-    }
+        if (
+            critere?.code ===
+            'remote'
+        ) {
+            return 'egal';
+        }
 
-    return 'contient';
-};
+        return 'contient';
+    };
 
-const valeurParDefaut = (
-    critere
-) => {
-    if (
-        critere?.code ===
-        'remote'
-    ) {
-        return 'full_remote';
-    }
+const valeurParDefaut =
+    (critere) => {
+        if (
+            critere?.code ===
+            'remote'
+        ) {
+            return (
+                'full_remote'
+            );
+        }
 
-    return '';
-};
+        return '';
+    };
 
 const ajouterFiltre = () => {
     if (
@@ -471,7 +640,7 @@ const ajouterFiltre = () => {
         disponibles.length === 0
     ) {
         window.alert(
-            'Tous les critères disponibles sont déjà utilisés dans les filtres.'
+            'Tous les critères disponibles sont déjà utilisés.'
         );
 
         return;
@@ -493,7 +662,9 @@ const ajouterFiltre = () => {
                 critere.id,
 
             critere:
-                clone(critere),
+                clone(
+                    critere
+                ),
 
             operateur:
                 operateurParDefaut(
@@ -507,74 +678,71 @@ const ajouterFiltre = () => {
         });
 };
 
-const changerCritereFiltre = (
-    regle
-) => {
-    const critere =
-        critereParId(
-            regle.critere_id
-        );
-
-    regle.critere =
-        critere
-            ? clone(critere)
-            : null;
-
-    regle.operateur =
-        operateurParDefaut(
-            critere
-        );
-
-    regle.valeur =
-        valeurParDefaut(
-            critere
-        );
-};
-
-const supprimerFiltre = (
-    index
-) => {
-    const regle =
-        profilSelectionne.value
-            .regles_filtrage[
-                index
-            ];
-
-    const critereId =
-        Number(
-            regle.critere_id
-        );
-
-    /*
-     * Le scoring dépend d'une règle
-     * de filtrage du même critère.
-     * Si le filtre disparaît, on retire
-     * également le scoring correspondant.
-     */
-    profilSelectionne.value
-        .regles_scoring =
-        profilSelectionne.value
-            .regles_scoring
-            .filter(
-                (scoring) =>
-                    Number(
-                        scoring
-                            .critere_id
-                    ) !==
-                    critereId
+const changerCritereFiltre =
+    (regle) => {
+        const critere =
+            critereParId(
+                regle.critere_id
             );
 
-    profilSelectionne.value
-        .regles_filtrage
-        .splice(
-            index,
-            1
-        );
-};
+        regle.critere =
+            critere
+                ? clone(
+                    critere
+                )
+                : null;
+
+        regle.operateur =
+            operateurParDefaut(
+                critere
+            );
+
+        regle.valeur =
+            valeurParDefaut(
+                critere
+            );
+    };
+
+const supprimerFiltre =
+    (index) => {
+        const regle =
+            profilSelectionne
+                .value
+                .regles_filtrage[
+                    index
+                ];
+
+        const critereId =
+            Number(
+                regle.critere_id
+            );
+
+        profilSelectionne.value
+            .regles_scoring =
+            profilSelectionne
+                .value
+                .regles_scoring
+                .filter(
+                    (scoring) =>
+                        Number(
+                            scoring
+                                .critere_id
+                        )
+                        !==
+                        critereId
+                );
+
+        profilSelectionne.value
+            .regles_filtrage
+            .splice(
+                index,
+                1
+            );
+    };
 
 /*
 |--------------------------------------------------------------------------
-| Scoring rules
+| Scoring
 |--------------------------------------------------------------------------
 */
 
@@ -591,20 +759,12 @@ const criteresScoringDisponibles =
                         )
                 );
 
-        /*
-         * Le moteur de scoring actuel
-         * évalue un critère grâce à sa
-         * règle de filtrage correspondante.
-         *
-         * On propose donc uniquement
-         * les critères déjà présents
-         * dans les filtres.
-         */
         return profilSelectionne.value
             .regles_filtrage
             .map(
                 (filtre) =>
-                    filtre.critere ??
+                    filtre.critere
+                    ??
                     critereParId(
                         filtre
                             .critere_id
@@ -613,11 +773,12 @@ const criteresScoringDisponibles =
             .filter(Boolean)
             .filter(
                 (critere) =>
-                    !idsScoring.includes(
-                        Number(
-                            critere.id
+                    !idsScoring
+                        .includes(
+                            Number(
+                                critere.id
+                            )
                         )
-                    )
             );
     };
 
@@ -651,36 +812,23 @@ const ajouterScoring = () => {
                 critere.id,
 
             critere:
-                clone(critere),
+                clone(
+                    critere
+                ),
 
             poids: 1,
         });
 };
 
-const changerCritereScoring = (
-    regle
-) => {
-    const critere =
-        critereParId(
-            regle.critere_id
-        );
-
-    regle.critere =
-        critere
-            ? clone(critere)
-            : null;
-};
-
-const supprimerScoring = (
-    index
-) => {
-    profilSelectionne.value
-        .regles_scoring
-        .splice(
-            index,
-            1
-        );
-};
+const supprimerScoring =
+    (index) => {
+        profilSelectionne.value
+            .regles_scoring
+            .splice(
+                index,
+                1
+            );
+    };
 
 /*
 |--------------------------------------------------------------------------
@@ -715,20 +863,19 @@ const ajouterAlerte = () => {
         });
 };
 
-const supprimerAlerte = (
-    index
-) => {
-    profilSelectionne.value
-        .alertes
-        .splice(
-            index,
-            1
-        );
-};
+const supprimerAlerte =
+    (index) => {
+        profilSelectionne.value
+            .alertes
+            .splice(
+                index,
+                1
+            );
+    };
 
 /*
 |--------------------------------------------------------------------------
-| Save profile
+| Save
 |--------------------------------------------------------------------------
 */
 
@@ -740,28 +887,29 @@ const sauvegarderProfil =
             return;
         }
 
-        saving.value = true;
-        error.value = null;
-        successMessage.value = null;
+        saving.value =
+            true;
+
+        error.value =
+            null;
+
+        successMessage.value =
+            null;
 
         try {
             const payload = {
-                /*
-                 * Profil
-                 */
                 nom:
                     profilSelectionne
-                        .value.nom,
+                        .value
+                        .nom,
 
                 actif:
                     Boolean(
                         profilSelectionne
-                            .value.actif
+                            .value
+                            .actif
                     ),
 
-                /*
-                 * Filtres
-                 */
                 regles_filtrage:
                     profilSelectionne
                         .value
@@ -769,8 +917,8 @@ const sauvegarderProfil =
                         .map(
                             (regle) => ({
                                 id:
-                                    regle.id ??
-                                    null,
+                                    regle.id
+                                    ?? null,
 
                                 critere_id:
                                     Number(
@@ -783,23 +931,18 @@ const sauvegarderProfil =
                                         .operateur,
 
                                 valeur:
-                                    regle
-                                        .valeur ===
-                                        null ||
-                                    regle
-                                        .valeur ===
-                                        undefined
+                                    regle.valeur
+                                        === null
+                                    ||
+                                    regle.valeur
+                                        === undefined
                                         ? null
                                         : String(
-                                              regle
-                                                  .valeur
-                                          ),
+                                            regle.valeur
+                                        ),
                             })
                         ),
 
-                /*
-                 * Scoring
-                 */
                 regles_scoring:
                     profilSelectionne
                         .value
@@ -807,8 +950,8 @@ const sauvegarderProfil =
                         .map(
                             (regle) => ({
                                 id:
-                                    regle.id ??
-                                    null,
+                                    regle.id
+                                    ?? null,
 
                                 critere_id:
                                     Number(
@@ -818,15 +961,11 @@ const sauvegarderProfil =
 
                                 poids:
                                     Number(
-                                        regle
-                                            .poids
+                                        regle.poids
                                     ),
                             })
                         ),
 
-                /*
-                 * Alertes
-                 */
                 alertes:
                     profilSelectionne
                         .value
@@ -834,20 +973,17 @@ const sauvegarderProfil =
                         .map(
                             (alerte) => ({
                                 id:
-                                    alerte.id ??
-                                    null,
+                                    alerte.id
+                                    ?? null,
 
                                 canal:
-                                    alerte
-                                        .canal,
+                                    alerte.canal,
 
                                 destination:
-                                    alerte
-                                        .destination,
+                                    alerte.destination,
 
                                 frequence:
-                                    alerte
-                                        .frequence,
+                                    alerte.frequence,
 
                                 seuil_score_min:
                                     Number(
@@ -857,8 +993,7 @@ const sauvegarderProfil =
 
                                 actif:
                                     Boolean(
-                                        alerte
-                                            .actif
+                                        alerte.actif
                                     ),
                             })
                         ),
@@ -886,20 +1021,18 @@ const sauvegarderProfil =
                         profilMisAJour.id
                 );
 
-            if (index !== -1) {
+            if (
+                index !== -1
+            ) {
                 profils.value[index] =
                     clone(
                         profilMisAJour
                     );
             }
 
-            successMessage.value =
-                'Profil sauvegardé et scores recalculés avec succès.';
-
-            setTimeout(() => {
-                successMessage.value =
-                    null;
-            }, 4000);
+            afficherSucces(
+                'Profil sauvegardé et scores recalculés avec succès.'
+            );
         } catch (err) {
             console.error(
                 'Erreur sauvegarde profil :',
@@ -907,17 +1040,20 @@ const sauvegarderProfil =
             );
 
             if (
-                err.response?.status ===
-                422
+                err.response
+                    ?.status === 422
             ) {
                 const errors =
-                    err.response.data
+                    err.response
+                        .data
                         ?.errors;
 
                 if (
-                    errors &&
-                    Object.keys(errors)
-                        .length > 0
+                    errors
+                    &&
+                    Object.keys(
+                        errors
+                    ).length > 0
                 ) {
                     const premierChamp =
                         Object.keys(
@@ -927,12 +1063,15 @@ const sauvegarderProfil =
                     error.value =
                         errors[
                             premierChamp
-                        ]?.[0] ??
+                        ]?.[0]
+                        ??
                         'Configuration invalide.';
                 } else {
                     error.value =
-                        err.response.data
-                            ?.message ??
+                        err.response
+                            .data
+                            ?.message
+                        ??
                         'Configuration invalide.';
                 }
             } else {
@@ -940,7 +1079,8 @@ const sauvegarderProfil =
                     'Impossible de sauvegarder ce profil.';
             }
         } finally {
-            saving.value = false;
+            saving.value =
+                false;
         }
     };
 
@@ -950,91 +1090,163 @@ const sauvegarderProfil =
 |--------------------------------------------------------------------------
 */
 
-const labelOperateur = (
-    operateur
-) => {
-    const labels = {
-        egal: '=',
-        contient: 'Contient',
-        superieur_egal: '≥',
-        inferieur_egal: '≤',
-        dans: 'Dans',
+const labelOperateur =
+    (operateur) => {
+        const labels = {
+            egal: '=',
+            contient: 'contient',
+            superieur_egal: '≥',
+            inferieur_egal: '≤',
+            dans: 'dans',
+        };
+
+        return (
+            labels[operateur]
+            ??
+            operateur
+        );
     };
 
-    return (
-        labels[operateur] ??
-        operateur
-    );
-};
+const descriptionCritere =
+    (code) => {
+        const descriptions = {
+            stack:
+                'Technologie ou compétence recherchée.',
 
-const descriptionCritere = (
-    code
-) => {
-    const descriptions = {
-        stack:
-            'Technologie ou compétence recherchée.',
+            tjm_min:
+                'TJM minimum accepté.',
 
-        tjm_min:
-            'TJM minimum accepté.',
+            remote:
+                'Mode de travail recherché.',
 
-        remote:
-            'Mode de travail recherché.',
+            duree_min:
+                'Durée minimum de la mission.',
 
-        duree_min:
-            'Durée minimum de la mission.',
+            localisation:
+                'Localisation recherchée.',
 
-        localisation:
-            'Localisation recherchée.',
+            secteur:
+                'Secteur recherché.',
+        };
 
-        secteur:
-            'Secteur recherché.',
+        return (
+            descriptions[code]
+            ??
+            'Critère de recherche.'
+        );
     };
 
-    return (
-        descriptions[code] ??
-        'Critère de recherche.'
-    );
-};
+const valeurLisible =
+    (regle) => {
+        if (
+            regle.critere
+                ?.code ===
+            'remote'
+        ) {
+            const valeurs = {
+                full_remote:
+                    'Full remote',
 
-const labelFrequence = (
-    frequence
-) => {
-    const labels = {
-        immediate:
-            'Immediate',
+                hybrid:
+                    'Hybride',
 
-        daily:
-            'Daily Digest',
+                onsite:
+                    'Sur site',
+            };
 
-        weekly:
-            'Weekly Digest',
+            return (
+                valeurs[
+                    regle.valeur
+                ]
+                ??
+                regle.valeur
+            );
+        }
+
+        return (
+            regle.valeur
+            ||
+            '—'
+        );
     };
 
-    return (
-        labels[frequence] ??
-        frequence
-    );
-};
+const labelFrequence =
+    (frequence) => {
+        const labels = {
+            immediate:
+                'Immédiate',
 
-const classeFrequence = (
-    frequence
-) => {
-    const classes = {
-        immediate:
-            'bg-blue-100 text-blue-700',
+            daily:
+                'Quotidienne',
 
-        daily:
-            'bg-amber-100 text-amber-700',
+            weekly:
+                'Hebdomadaire',
+        };
 
-        weekly:
-            'bg-purple-100 text-purple-700',
+        return (
+            labels[frequence]
+            ??
+            frequence
+        );
     };
 
-    return (
-        classes[frequence] ??
-        'bg-slate-100 text-slate-700'
-    );
-};
+const iconeCanal =
+    (canal) => {
+        const icons = {
+            email: '✉',
+            telegram: '➤',
+            webhook: '⌁',
+        };
+
+        return (
+            icons[canal]
+            ??
+            '◉'
+        );
+    };
+
+const labelCanal =
+    (canal) => {
+        const labels = {
+            email:
+                'Email',
+
+            telegram:
+                'Telegram',
+
+            webhook:
+                'Webhook',
+        };
+
+        return (
+            labels[canal]
+            ??
+            canal
+        );
+    };
+
+const placeholderDestination =
+    (canal) => {
+        if (
+            canal === 'email'
+        ) {
+            return (
+                'email@example.com'
+            );
+        }
+
+        if (
+            canal === 'telegram'
+        ) {
+            return (
+                'Chat ID / destination Telegram'
+            );
+        }
+
+        return (
+            'https://example.com/webhook'
+        );
+    };
 
 /*
 |--------------------------------------------------------------------------
@@ -1049,1145 +1261,3578 @@ onMounted(() => {
 
 <template>
     <main
-        class="mx-auto max-w-7xl px-6 py-10"
+        class="profiles-page relative min-h-screen overflow-hidden"
     >
-        <!-- ========================================================= -->
-        <!-- HEADER -->
-        <!-- ========================================================= -->
+        <!-- Background -->
 
         <div
-            class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
-        >
-            <div>
-                <h2
-                    class="text-3xl font-bold text-slate-900"
-                >
-                    Profils
-                </h2>
-
-                <p
-                    class="mt-2 text-slate-500"
-                >
-                    Gérez les profils de recherche,
-                    leurs filtres, scoring et alertes.
-                </p>
-            </div>
-
-            <div
-                class="flex items-center gap-3"
-            >
-                <div
-                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-                >
-                    {{ profils.length }}
-                    profil(s)
-                </div>
-
-                <button
-                    type="button"
-                    class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                    @click="
-                        ouvrirCreationProfil
-                    "
-                >
-                    + Nouveau profil
-                </button>
-            </div>
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- SUCCESS -->
-        <!-- ========================================================= -->
+            class="pointer-events-none absolute -left-40 top-20 h-[450px] w-[450px] rounded-full bg-violet-400/10 blur-3xl"
+        ></div>
 
         <div
-            v-if="successMessage"
-            class="mb-6 rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-green-700"
-        >
-            ✓ {{ successMessage }}
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- ERROR -->
-        <!-- ========================================================= -->
+            class="pointer-events-none absolute -right-40 top-[550px] h-[500px] w-[500px] rounded-full bg-indigo-400/10 blur-3xl"
+        ></div>
 
         <div
-            v-if="error"
-            class="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-red-700"
-        >
-            {{ error }}
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- LOADING -->
-        <!-- ========================================================= -->
-
-        <div
-            v-if="loading"
-            class="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-500 shadow-sm"
-        >
-            Chargement des profils...
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- NO PROFILE -->
-        <!-- ========================================================= -->
-
-        <div
-            v-else-if="
-                profils.length === 0
-            "
-            class="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm"
-        >
-            <div class="text-5xl">
-                🎯
-            </div>
-
-            <h3
-                class="mt-4 text-xl font-semibold text-slate-900"
-            >
-                Aucun profil de recherche
-            </h3>
-
-            <p
-                class="mt-2 text-slate-500"
-            >
-                Créez votre premier profil
-                pour commencer à filtrer
-                et scorer les missions.
-            </p>
-
-            <button
-                type="button"
-                class="mt-6 rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white"
-                @click="
-                    ouvrirCreationProfil
-                "
-            >
-                + Créer un profil
-            </button>
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- CRUD -->
-        <!-- ========================================================= -->
-
-        <div
-            v-else
-            class="grid gap-6 lg:grid-cols-[280px_1fr]"
+            class="relative mx-auto max-w-7xl px-6 py-10 lg:py-12"
         >
             <!-- ===================================================== -->
-            <!-- PROFILES LIST -->
-            <!-- ===================================================== -->
-
-            <aside>
-                <div
-                    class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-                >
-                    <div
-                        class="border-b border-slate-200 px-5 py-4"
-                    >
-                        <h3
-                            class="font-semibold text-slate-900"
-                        >
-                            Profils de recherche
-                        </h3>
-                    </div>
-
-                    <button
-                        v-for="
-                            profil in profils
-                        "
-                        :key="profil.id"
-                        type="button"
-                        class="w-full border-b border-slate-100 px-5 py-4 text-left transition last:border-b-0"
-                        :class="
-                            profilSelectionne?.id
-                                === profil.id
-                                ? 'bg-slate-900 text-white'
-                                : 'hover:bg-slate-50'
-                        "
-                        @click="
-                            selectionnerProfil(
-                                profil
-                            )
-                        "
-                    >
-                        <div
-                            class="flex items-center justify-between gap-3"
-                        >
-                            <span
-                                class="font-semibold"
-                            >
-                                {{ profil.nom }}
-                            </span>
-
-                            <span
-                                class="h-2.5 w-2.5 rounded-full"
-                                :class="
-                                    profil.actif
-                                        ? 'bg-green-500'
-                                        : 'bg-slate-300'
-                                "
-                            ></span>
-                        </div>
-
-                        <p
-                            class="mt-2 text-xs"
-                            :class="
-                                profilSelectionne?.id
-                                    === profil.id
-                                    ? 'text-slate-300'
-                                    : 'text-slate-500'
-                            "
-                        >
-                            {{
-                                profil.scores_missions_count
-                                ?? 0
-                            }}
-                            mission(s) scorée(s)
-                        </p>
-                    </button>
-                </div>
-            </aside>
-
-            <!-- ===================================================== -->
-            <!-- PROFILE -->
+            <!-- HERO -->
             <!-- ===================================================== -->
 
             <section
-                v-if="
-                    profilSelectionne
-                "
-                class="space-y-6"
+                class="profile-hero relative mb-7 overflow-hidden rounded-[30px] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-950 p-7 text-white shadow-2xl shadow-violet-200/40 lg:p-9"
             >
-                <!-- ================================================= -->
-                <!-- GENERAL -->
-                <!-- ================================================= -->
+                <div
+                    class="absolute -right-24 -top-28 h-80 w-80 rounded-full bg-violet-400/20 blur-3xl"
+                ></div>
 
                 <div
-                    class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-                >
-                    <div
-                        class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between"
-                    >
-                        <div class="flex-1">
-                            <label
-                                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                            >
-                                Nom
-                            </label>
-
-                            <input
-                                v-model="
-                                    profilSelectionne.nom
-                                "
-                                type="text"
-                                class="mt-2 w-full max-w-md rounded-lg border border-slate-300 px-4 py-2.5 text-lg font-semibold outline-none focus:border-slate-500"
-                            >
-                        </div>
-
-                        <div
-                            class="flex items-center gap-4"
-                        >
-                            <div
-                                class="text-right"
-                            >
-                                <p
-                                    class="text-sm font-semibold text-slate-800"
-                                >
-                                    Profil actif
-                                </p>
-
-                                <p
-                                    class="text-xs text-slate-500"
-                                >
-                                    Filtrage et alertes
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                role="switch"
-                                class="relative inline-flex h-7 w-12 rounded-full transition"
-                                :class="
-                                    profilSelectionne.actif
-                                        ? 'bg-green-500'
-                                        : 'bg-slate-300'
-                                "
-                                @click="
-                                    profilSelectionne.actif =
-                                        !profilSelectionne.actif
-                                "
-                            >
-                                <span
-                                    class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition"
-                                    :class="
-                                        profilSelectionne.actif
-                                            ? 'translate-x-6 translate-y-1'
-                                            : 'translate-x-1 translate-y-1'
-                                    "
-                                ></span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Stats -->
-                    <div
-                        class="mt-6 grid gap-4 sm:grid-cols-3"
-                    >
-                        <div
-                            class="rounded-lg bg-slate-50 p-4"
-                        >
-                            <p
-                                class="text-xs font-semibold uppercase text-slate-400"
-                            >
-                                Filtres
-                            </p>
-
-                            <p
-                                class="mt-1 text-2xl font-bold"
-                            >
-                                {{ nombreFiltres }}
-                            </p>
-                        </div>
-
-                        <div
-                            class="rounded-lg bg-slate-50 p-4"
-                        >
-                            <p
-                                class="text-xs font-semibold uppercase text-slate-400"
-                            >
-                                Score maximum
-                            </p>
-
-                            <p
-                                class="mt-1 text-2xl font-bold"
-                            >
-                                {{ scoreMaximum }}
-                            </p>
-                        </div>
-
-                        <div
-                            class="rounded-lg bg-slate-50 p-4"
-                        >
-                            <p
-                                class="text-xs font-semibold uppercase text-slate-400"
-                            >
-                                Alertes actives
-                            </p>
-
-                            <p
-                                class="mt-1 text-2xl font-bold"
-                            >
-                                {{
-                                    nombreAlertesActives
-                                }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ================================================= -->
-                <!-- FILTERS -->
-                <!-- ================================================= -->
+                    class="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-indigo-400/10 blur-3xl"
+                ></div>
 
                 <div
-                    class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                    class="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between"
                 >
                     <div
-                        class="flex items-center justify-between border-b border-slate-200 px-6 py-5"
+                        class="max-w-2xl"
                     >
-                        <div>
-                            <h3
-                                class="text-lg font-semibold text-slate-900"
-                            >
-                                🔎 Règles de filtrage
-                            </h3>
+                        <div
+                            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-violet-100 backdrop-blur"
+                        >
+                            <span
+                                class="h-2 w-2 animate-pulse rounded-full bg-violet-300"
+                            ></span>
 
-                            <p
-                                class="mt-1 text-sm text-slate-500"
-                            >
-                                Toutes les règles
-                                utilisent une logique AND.
-                            </p>
+                            Search Intelligence
                         </div>
+
+                        <h1
+                            class="mt-5 text-3xl font-black tracking-tight sm:text-4xl"
+                        >
+                            Profils de
+                            <span
+                                class="hero-gradient"
+                            >
+                                recherche
+                            </span>
+                        </h1>
+
+                        <p
+                            class="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base"
+                        >
+                            Construisez vos stratégies de recherche, attribuez des scores aux critères importants et automatisez vos alertes.
+                        </p>
 
                         <button
                             type="button"
-                            class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+                            class="hero-button mt-6"
                             @click="
-                                ajouterFiltre
+                                ouvrirCreationProfil
                             "
                         >
-                            + Ajouter un filtre
+                            <span>
+                                ＋
+                            </span>
+
+                            Nouveau profil
                         </button>
                     </div>
 
                     <div
-                        v-if="
-                            profilSelectionne
-                                .regles_filtrage
-                                .length === 0
-                        "
-                        class="px-6 py-10 text-center text-sm text-slate-500"
-                    >
-                        Aucun filtre configuré.
-                    </div>
-
-                    <div
-                        v-else
-                        class="divide-y divide-slate-100"
+                        class="grid grid-cols-2 gap-3"
                     >
                         <div
-                            v-for="
-                                (
-                                    regle,
-                                    index
-                                ) in
-                                profilSelectionne.regles_filtrage
-                            "
-                            :key="
-                                regle.id ??
-                                `new-filter-${index}`
-                            "
-                            class="grid gap-4 px-6 py-5 xl:grid-cols-[1.2fr_170px_1fr_auto]"
+                            class="hero-stat"
                         >
-                            <!-- Criterion -->
-                            <div>
-                                <label
-                                    class="mb-2 block text-xs font-semibold uppercase text-slate-400"
-                                >
-                                    Critère
-                                </label>
+                            <span>
+                                Profils
+                            </span>
 
-                                <select
-                                    v-model.number="
-                                        regle.critere_id
-                                    "
-                                    :disabled="
-                                        Boolean(
-                                            regle.id
-                                        )
-                                    "
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 disabled:bg-slate-100"
-                                    @change="
-                                        changerCritereFiltre(
-                                            regle
-                                        )
-                                    "
-                                >
-                                    <option
-                                        v-for="
-                                            critere in criteres
-                                        "
-                                        :key="
-                                            critere.id
-                                        "
-                                        :value="
-                                            critere.id
-                                        "
-                                        :disabled="
-                                            critereDejaDansFiltres(
-                                                critere.id
-                                            ) &&
-                                            Number(
-                                                regle.critere_id
-                                            ) !==
-                                                Number(
-                                                    critere.id
-                                                )
-                                        "
-                                    >
-                                        {{
-                                            critere.label
-                                        }}
-                                    </option>
-                                </select>
+                            <strong>
+                                {{
+                                    profils.length
+                                }}
+                            </strong>
+                        </div>
 
-                                <p
-                                    class="mt-2 text-xs text-slate-500"
+                        <div
+                            class="hero-stat"
+                        >
+                            <span>
+                                Actifs
+                            </span>
+
+                            <strong
+                                class="text-emerald-300"
+                            >
+                                {{
+                                    profilsActifs
+                                }}
+                            </strong>
+                        </div>
+
+                        <div
+                            class="hero-stat"
+                        >
+                            <span>
+                                Filtres
+                            </span>
+
+                            <strong
+                                class="text-indigo-300"
+                            >
+                                {{
+                                    totalFiltres
+                                }}
+                            </strong>
+                        </div>
+
+                        <div
+                            class="hero-stat"
+                        >
+                            <span>
+                                Alertes
+                            </span>
+
+                            <strong
+                                class="text-violet-300"
+                            >
+                                {{
+                                    totalAlertesActives
+                                }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Success -->
+
+            <transition
+                name="toast"
+            >
+                <div
+                    v-if="
+                        successMessage
+                    "
+                    class="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 px-5 py-4 text-sm font-bold text-emerald-700 shadow-lg shadow-emerald-100/50"
+                >
+                    <span
+                        class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100"
+                    >
+                        ✓
+                    </span>
+
+                    {{
+                        successMessage
+                    }}
+                </div>
+            </transition>
+
+            <!-- Error -->
+
+            <div
+                v-if="error"
+                class="mb-6 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700"
+            >
+                <span>
+                    ⚠
+                </span>
+
+                {{ error }}
+            </div>
+
+            <!-- ===================================================== -->
+            <!-- LOADING -->
+            <!-- ===================================================== -->
+
+            <div
+                v-if="loading"
+                class="grid gap-6 lg:grid-cols-[290px_1fr]"
+            >
+                <div
+                    class="h-[500px] animate-pulse rounded-[26px] bg-white"
+                ></div>
+
+                <div
+                    class="space-y-5"
+                >
+                    <div
+                        class="h-64 animate-pulse rounded-[26px] bg-white"
+                    ></div>
+
+                    <div
+                        class="h-72 animate-pulse rounded-[26px] bg-white"
+                    ></div>
+                </div>
+            </div>
+
+            <!-- ===================================================== -->
+            <!-- EMPTY -->
+            <!-- ===================================================== -->
+
+            <div
+                v-else-if="
+                    profils.length === 0
+                "
+                class="rounded-[28px] border border-dashed border-slate-300 bg-white/85 px-6 py-16 text-center shadow-sm"
+            >
+                <div
+                    class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-50 text-3xl text-violet-600"
+                >
+                    ◎
+                </div>
+
+                <h2
+                    class="mt-5 text-xl font-black text-slate-900"
+                >
+                    Aucun profil de recherche
+                </h2>
+
+                <p
+                    class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500"
+                >
+                    Créez votre premier profil pour filtrer, scorer et surveiller automatiquement les nouvelles missions.
+                </p>
+
+                <button
+                    type="button"
+                    class="mt-6 rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
+                    @click="
+                        ouvrirCreationProfil
+                    "
+                >
+                    + Créer un profil
+                </button>
+            </div>
+
+            <!-- ===================================================== -->
+            <!-- WORKSPACE -->
+            <!-- ===================================================== -->
+
+            <div
+                v-else
+                class="grid gap-6 lg:grid-cols-[300px_1fr]"
+            >
+                <!-- PROFILE LIST -->
+
+                <aside>
+                    <div
+                        class="sticky top-24 overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/90 shadow-lg shadow-slate-200/40 backdrop-blur-xl"
+                    >
+                        <div
+                            class="border-b border-slate-100 px-5 py-5"
+                        >
+                            <p
+                                class="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-500"
+                            >
+                                Workspace
+                            </p>
+
+                            <div
+                                class="mt-1 flex items-center justify-between"
+                            >
+                                <h2
+                                    class="text-base font-black text-slate-900"
+                                >
+                                    Vos profils
+                                </h2>
+
+                                <span
+                                    class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500"
                                 >
                                     {{
-                                        descriptionCritere(
-                                            regle.critere
-                                                ?.code
-                                        )
+                                        profils.length
                                     }}
-                                </p>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div
+                            class="max-h-[650px] overflow-y-auto p-2"
+                        >
+                            <button
+                                v-for="
+                                    profil in profils
+                                "
+                                :key="
+                                    profil.id
+                                "
+                                type="button"
+                                class="profile-selector group"
+                                :class="
+                                    profilSelectionne?.id === profil.id
+                                        ? 'profile-selector-active'
+                                        : 'profile-selector-idle'
+                                "
+                                @click="
+                                    selectionnerProfil(
+                                        profil
+                                    )
+                                "
+                            >
+                                <div
+                                    class="flex items-start justify-between gap-3"
+                                >
+                                    <div
+                                        class="min-w-0"
+                                    >
+                                        <div
+                                            class="flex items-center gap-2"
+                                        >
+                                            <span
+                                                class="status-dot"
+                                                :class="
+                                                    profil.actif
+                                                        ? 'bg-emerald-400'
+                                                        : 'bg-slate-300'
+                                                "
+                                            ></span>
+
+                                            <h3
+                                                class="truncate text-sm font-black"
+                                            >
+                                                {{
+                                                    profil.nom
+                                                }}
+                                            </h3>
+                                        </div>
+
+                                        <p
+                                            class="mt-2 text-[10px] opacity-60"
+                                        >
+                                            {{
+                                                profil.scores_missions_count
+                                                ?? 0
+                                            }}
+                                            missions scorées
+                                        </p>
+                                    </div>
+
+                                    <span
+                                        class="score-mini"
+                                    >
+                                        {{
+                                            scoreMaximumProfil(
+                                                profil
+                                            )
+                                        }}
+                                    </span>
+                                </div>
+
+                                <div
+                                    class="mt-3 flex gap-2"
+                                >
+                                    <span
+                                        class="profile-mini-chip"
+                                    >
+                                        ◇
+                                        {{
+                                            profil.regles_filtrage
+                                                ?.length
+                                            ?? 0
+                                        }}
+                                    </span>
+
+                                    <span
+                                        class="profile-mini-chip"
+                                    >
+                                        ✦
+                                        {{
+                                            profil.regles_scoring
+                                                ?.length
+                                            ?? 0
+                                        }}
+                                    </span>
+
+                                    <span
+                                        class="profile-mini-chip"
+                                    >
+                                        🔔
+                                        {{
+                                            alertesActivesProfil(
+                                                profil
+                                            )
+                                        }}
+                                    </span>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div
+                            class="border-t border-slate-100 p-3"
+                        >
+                            <button
+                                type="button"
+                                class="w-full rounded-xl border border-dashed border-indigo-200 bg-indigo-50/50 px-4 py-3 text-xs font-black text-indigo-600 transition-all duration-300 hover:bg-indigo-50"
+                                @click="
+                                    ouvrirCreationProfil
+                                "
+                            >
+                                + Nouveau profil
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- PROFILE CONTENT -->
+
+                <section
+                    v-if="
+                        profilSelectionne
+                    "
+                    class="min-w-0 space-y-6"
+                >
+                    <!-- SUMMARY -->
+
+                    <article
+                        class="profile-summary relative overflow-hidden"
+                    >
+                        <div
+                            class="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-violet-400/10 blur-3xl"
+                        ></div>
+
+                        <div
+                            class="relative"
+                        >
+                            <div
+                                class="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between"
+                            >
+                                <div
+                                    class="min-w-0 flex-1"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <span
+                                            class="profile-state"
+                                            :class="
+                                                profilSelectionne.actif
+                                                    ? 'profile-state-active'
+                                                    : 'profile-state-inactive'
+                                            "
+                                        >
+                                            <span
+                                                class="h-2 w-2 rounded-full"
+                                                :class="
+                                                    profilSelectionne.actif
+                                                        ? 'bg-emerald-500'
+                                                        : 'bg-slate-400'
+                                                "
+                                            ></span>
+
+                                            {{
+                                                profilSelectionne.actif
+                                                    ? 'Profil actif'
+                                                    : 'Profil inactif'
+                                            }}
+                                        </span>
+
+                                        <span
+                                            class="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-black text-indigo-600"
+                                        >
+                                            {{
+                                                profilSelectionne
+                                                    .scores_missions_count
+                                                ?? 0
+                                            }}
+                                            missions scorées
+                                        </span>
+                                    </div>
+
+                                    <input
+                                        v-model="
+                                            profilSelectionne.nom
+                                        "
+                                        type="text"
+                                        class="profile-name-input"
+                                    >
+
+                                    <p
+                                        class="mt-2 max-w-2xl text-sm leading-6 text-slate-400"
+                                    >
+                                        Configurez les critères obligatoires, les poids de pertinence et les règles de notification de ce profil.
+                                    </p>
+                                </div>
+
+                                <div
+                                    class="score-panel"
+                                >
+                                    <div
+                                        class="score-orb"
+                                    >
+                                        <span
+                                            class="text-[9px] font-black uppercase tracking-[0.12em] text-indigo-200"
+                                        >
+                                            Score
+                                        </span>
+
+                                        <strong>
+                                            {{
+                                                scoreMaximum
+                                            }}
+                                        </strong>
+
+                                        <span
+                                            class="text-[9px] font-bold text-indigo-200"
+                                        >
+                                            maximum
+                                        </span>
+                                    </div>
+
+                                    <div>
+                                        <p
+                                            class="text-xs font-black text-slate-700"
+                                        >
+                                            Matching potentiel
+                                        </p>
+
+                                        <p
+                                            class="mt-1 text-[10px] leading-5 text-slate-400"
+                                        >
+                                            Somme des poids de scoring configurés.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- Operator -->
-                            <div>
-                                <label
-                                    class="mb-2 block text-xs font-semibold uppercase text-slate-400"
-                                >
-                                    Opérateur
-                                </label>
+                            <!-- METRICS -->
 
-                                <select
-                                    v-model="
-                                        regle.operateur
+                            <div
+                                class="mt-6 grid gap-3 sm:grid-cols-4"
+                            >
+                                <div
+                                    class="summary-stat"
+                                >
+                                    <span>
+                                        ◇
+                                    </span>
+
+                                    <div>
+                                        <p>
+                                            Filtres
+                                        </p>
+
+                                        <strong>
+                                            {{
+                                                nombreFiltres
+                                            }}
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="summary-stat"
+                                >
+                                    <span>
+                                        ✦
+                                    </span>
+
+                                    <div>
+                                        <p>
+                                            Scoring
+                                        </p>
+
+                                        <strong>
+                                            {{
+                                                nombreScorings
+                                            }}
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="summary-stat"
+                                >
+                                    <span>
+                                        🔔
+                                    </span>
+
+                                    <div>
+                                        <p>
+                                            Alertes actives
+                                        </p>
+
+                                        <strong>
+                                            {{
+                                                nombreAlertesActives
+                                            }}
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="summary-stat"
+                                >
+                                    <span>
+                                        ◎
+                                    </span>
+
+                                    <div>
+                                        <p>
+                                            Modules
+                                        </p>
+
+                                        <strong>
+                                            {{
+                                                modulesConfigures
+                                            }}/3
+                                        </strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PREVIEW RULES -->
+
+                            <div
+                                v-if="
+                                    profilSelectionne
+                                        .regles_filtrage
+                                        .length
+                                "
+                                class="mt-5 flex flex-wrap gap-2"
+                            >
+                                <span
+                                    v-for="
+                                        regle in profilSelectionne.regles_filtrage
                                     "
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                                    :key="
+                                        `preview-${regle.id ?? regle.critere_id}`
+                                    "
+                                    class="rule-chip"
                                 >
-                                    <option
-                                        value="egal"
-                                    >
-                                        =
-                                    </option>
+                                    <strong>
+                                        {{
+                                            regle.critere
+                                                ?.label
+                                            ??
+                                            'Critère'
+                                        }}
+                                    </strong>
 
-                                    <option
-                                        value="contient"
-                                    >
-                                        Contient
-                                    </option>
-
-                                    <option
-                                        value="superieur_egal"
-                                    >
-                                        ≥
-                                    </option>
-
-                                    <option
-                                        value="inferieur_egal"
-                                    >
-                                        ≤
-                                    </option>
-
-                                    <option
-                                        value="dans"
-                                    >
-                                        Dans
-                                    </option>
-                                </select>
-
-                                <p
-                                    class="mt-2 text-xs text-slate-400"
-                                >
                                     {{
                                         labelOperateur(
                                             regle.operateur
                                         )
                                     }}
-                                </p>
+
+                                    {{
+                                        valeurLisible(
+                                            regle
+                                        )
+                                    }}
+                                </span>
                             </div>
 
-                            <!-- Value -->
-                            <div>
-                                <label
-                                    class="mb-2 block text-xs font-semibold uppercase text-slate-400"
-                                >
-                                    Valeur
-                                </label>
+                            <!-- PREMIUM STATUS -->
 
-                                <select
-                                    v-if="
-                                        regle.critere
-                                            ?.code ===
-                                        'remote'
-                                    "
-                                    v-model="
-                                        regle.valeur
-                                    "
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                                >
-                                    <option
-                                        value="full_remote"
-                                    >
-                                        Full remote
-                                    </option>
-
-                                    <option
-                                        value="hybrid"
-                                    >
-                                        Hybrid
-                                    </option>
-
-                                    <option
-                                        value="onsite"
-                                    >
-                                        On-site
-                                    </option>
-                                </select>
-
-                                <input
-                                    v-else-if="
-                                        regle.critere
-                                            ?.type ===
-                                        'nombre'
-                                    "
-                                    v-model="
-                                        regle.valeur
-                                    "
-                                    type="number"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2"
-                                >
-
-                                <input
-                                    v-else
-                                    v-model="
-                                        regle.valeur
-                                    "
-                                    type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2"
-                                >
-                            </div>
-
-                            <!-- Delete -->
                             <div
-                                class="flex items-end"
+                                class="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
                             >
+                                <div>
+                                    <p
+                                        class="text-sm font-black text-slate-800"
+                                    >
+                                        Activation du profil
+                                    </p>
+
+                                    <p
+                                        class="mt-1 text-xs text-slate-400"
+                                    >
+                                        Contrôle son utilisation pour le matching et les alertes.
+                                    </p>
+                                </div>
+
                                 <button
                                     type="button"
-                                    class="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                                    role="switch"
+                                    :aria-checked="
+                                        profilSelectionne.actif
+                                    "
+                                    class="premium-status-toggle"
+                                    :class="
+                                        profilSelectionne.actif
+                                            ? 'premium-status-active'
+                                            : 'premium-status-inactive'
+                                    "
+                                    @click="
+                                        profilSelectionne.actif =
+                                            !profilSelectionne.actif
+                                    "
+                                >
+                                    <span
+                                        class="premium-status-dot"
+                                    >
+                                        <span
+                                            v-if="
+                                                profilSelectionne.actif
+                                            "
+                                            class="premium-status-pulse"
+                                        ></span>
+
+                                        <span
+                                            class="premium-status-dot-core"
+                                        ></span>
+                                    </span>
+
+                                    <span>
+                                        {{
+                                            profilSelectionne.actif
+                                                ? 'Actif'
+                                                : 'Inactif'
+                                        }}
+                                    </span>
+
+                                    <span
+                                        class="premium-status-icon"
+                                    >
+                                        {{
+                                            profilSelectionne.actif
+                                                ? '✓'
+                                                : '—'
+                                        }}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- FILTER RULES -->
+
+                    <article
+                        class="workspace-card"
+                    >
+                        <div
+                            class="workspace-header"
+                        >
+                            <div
+                                class="flex items-start gap-3"
+                            >
+                                <div
+                                    class="section-icon section-indigo"
+                                >
+                                    ◇
+                                </div>
+
+                                <div>
+                                    <p
+                                        class="section-eyebrow"
+                                    >
+                                        Filtrage
+                                    </p>
+
+                                    <h2
+                                        class="section-title"
+                                    >
+                                        Règles obligatoires
+                                    </h2>
+
+                                    <p
+                                        class="section-description"
+                                    >
+                                        Toutes les règles sont combinées avec une logique AND.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="add-button"
+                                @click="
+                                    ajouterFiltre
+                                "
+                            >
+                                + Ajouter
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="
+                                profilSelectionne
+                                    .regles_filtrage
+                                    .length === 0
+                            "
+                            class="empty-section"
+                        >
+                            <div
+                                class="empty-icon"
+                            >
+                                ◇
+                            </div>
+
+                            <p
+                                class="mt-3 font-black text-slate-700"
+                            >
+                                Aucun filtre
+                            </p>
+
+                            <p
+                                class="mt-1 text-xs text-slate-400"
+                            >
+                                Ajoutez un critère pour définir les missions acceptées.
+                            </p>
+                        </div>
+
+                        <div
+                            v-else
+                            class="space-y-3 p-5"
+                        >
+                            <div
+                                v-for="
+                                    (
+                                        regle,
+                                        index
+                                    ) in profilSelectionne.regles_filtrage
+                                "
+                                :key="
+                                    regle.id
+                                    ??
+                                    `filter-${index}`
+                                "
+                                class="rule-card"
+                            >
+                                <div
+                                    class="rule-number"
+                                >
+                                    {{
+                                        index + 1
+                                    }}
+                                </div>
+
+                                <div
+                                    class="grid min-w-0 flex-1 gap-4 xl:grid-cols-[1.2fr_180px_1fr]"
+                                >
+                                    <div>
+                                        <label
+                                            class="field-label"
+                                        >
+                                            Critère
+                                        </label>
+
+                                        <select
+                                            v-model.number="
+                                                regle.critere_id
+                                            "
+                                            :disabled="
+                                                Boolean(
+                                                    regle.id
+                                                )
+                                            "
+                                            class="field-control"
+                                            @change="
+                                                changerCritereFiltre(
+                                                    regle
+                                                )
+                                            "
+                                        >
+                                            <option
+                                                v-for="
+                                                    critere in criteres
+                                                "
+                                                :key="
+                                                    critere.id
+                                                "
+                                                :value="
+                                                    critere.id
+                                                "
+                                                :disabled="
+                                                    critereDejaDansFiltres(
+                                                        critere.id
+                                                    )
+                                                    &&
+                                                    Number(
+                                                        regle.critere_id
+                                                    )
+                                                    !==
+                                                    Number(
+                                                        critere.id
+                                                    )
+                                                "
+                                            >
+                                                {{
+                                                    critere.label
+                                                }}
+                                            </option>
+                                        </select>
+
+                                        <p
+                                            class="mt-2 text-[10px] leading-4 text-slate-400"
+                                        >
+                                            {{
+                                                descriptionCritere(
+                                                    regle
+                                                        .critere
+                                                        ?.code
+                                                )
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="field-label"
+                                        >
+                                            Opérateur
+                                        </label>
+
+                                        <select
+                                            v-model="
+                                                regle.operateur
+                                            "
+                                            class="field-control"
+                                        >
+                                            <option value="egal">
+                                                =
+                                            </option>
+
+                                            <option value="contient">
+                                                Contient
+                                            </option>
+
+                                            <option value="superieur_egal">
+                                                ≥
+                                            </option>
+
+                                            <option value="inferieur_egal">
+                                                ≤
+                                            </option>
+
+                                            <option value="dans">
+                                                Dans
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="field-label"
+                                        >
+                                            Valeur
+                                        </label>
+
+                                        <select
+                                            v-if="
+                                                regle.critere
+                                                    ?.code
+                                                ===
+                                                'remote'
+                                            "
+                                            v-model="
+                                                regle.valeur
+                                            "
+                                            class="field-control"
+                                        >
+                                            <option value="full_remote">
+                                                Full remote
+                                            </option>
+
+                                            <option value="hybrid">
+                                                Hybride
+                                            </option>
+
+                                            <option value="onsite">
+                                                Sur site
+                                            </option>
+                                        </select>
+
+                                        <input
+                                            v-else-if="
+                                                regle.critere
+                                                    ?.type
+                                                ===
+                                                'nombre'
+                                            "
+                                            v-model="
+                                                regle.valeur
+                                            "
+                                            type="number"
+                                            class="field-control"
+                                        >
+
+                                        <input
+                                            v-else
+                                            v-model="
+                                                regle.valeur
+                                            "
+                                            type="text"
+                                            class="field-control"
+                                        >
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="remove-button"
+                                    title="Supprimer cette règle"
                                     @click="
                                         supprimerFiltre(
                                             index
                                         )
                                     "
                                 >
-                                    🗑
+                                    ×
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </article>
 
-                <!-- ================================================= -->
-                <!-- SCORING -->
-                <!-- ================================================= -->
+                    <!-- SCORING -->
 
-                <div
-                    class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-                >
-                    <div
-                        class="flex items-center justify-between border-b border-slate-200 px-6 py-5"
-                    >
-                        <div>
-                            <h3
-                                class="text-lg font-semibold"
-                            >
-                                ⭐ Scoring
-                            </h3>
-
-                            <p
-                                class="mt-1 text-sm text-slate-500"
-                            >
-                                Score maximum :
-                                {{ scoreMaximum }}
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50"
-                            @click="
-                                ajouterScoring
-                            "
-                        >
-                            + Ajouter un scoring
-                        </button>
-                    </div>
-
-                    <div
-                        v-if="
-                            profilSelectionne
-                                .regles_scoring
-                                .length === 0
-                        "
-                        class="px-6 py-10 text-center text-sm text-slate-500"
-                    >
-                        Aucun scoring configuré.
-                    </div>
-
-                    <div
-                        v-else
-                        class="divide-y divide-slate-100"
+                    <article
+                        class="workspace-card"
                     >
                         <div
-                            v-for="
-                                (
-                                    regle,
-                                    index
-                                ) in
-                                profilSelectionne.regles_scoring
-                            "
-                            :key="
-                                regle.id ??
-                                `new-score-${index}`
-                            "
-                            class="grid gap-4 px-6 py-5 sm:grid-cols-[1fr_150px_auto]"
+                            class="workspace-header"
                         >
-                            <div>
-                                <p
-                                    class="font-semibold text-slate-900"
-                                >
-                                    {{
-                                        regle.critere
-                                            ?.label
-                                    }}
-                                </p>
-
-                                <p
-                                    class="mt-1 text-xs text-slate-500"
-                                >
-                                    {{
-                                        regle.critere
-                                            ?.code
-                                    }}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label
-                                    class="mb-2 block text-xs font-semibold uppercase text-slate-400"
-                                >
-                                    Poids
-                                </label>
-
-                                <input
-                                    v-model.number="
-                                        regle.poids
-                                    "
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 font-bold"
-                                >
-                            </div>
-
                             <div
-                                class="flex items-end"
+                                class="flex items-start gap-3"
                             >
-                                <button
-                                    type="button"
-                                    class="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-                                    @click="
-                                        supprimerScoring(
-                                            index
-                                        )
-                                    "
+                                <div
+                                    class="section-icon section-violet"
                                 >
-                                    🗑
-                                </button>
+                                    ✦
+                                </div>
+
+                                <div>
+                                    <p
+                                        class="section-eyebrow text-violet-500"
+                                    >
+                                        Matching
+                                    </p>
+
+                                    <h2
+                                        class="section-title"
+                                    >
+                                        Scoring de pertinence
+                                    </h2>
+
+                                    <p
+                                        class="section-description"
+                                    >
+                                        Attribuez plus de poids aux critères les plus importants.
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- ================================================= -->
-                <!-- ALERTS -->
-                <!-- ================================================= -->
-
-                <div
-                    class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-                >
-                    <div
-                        class="flex items-center justify-between border-b border-slate-200 px-6 py-5"
-                    >
-                        <div>
-                            <h3
-                                class="text-lg font-semibold"
+                            <button
+                                type="button"
+                                class="add-button"
+                                @click="
+                                    ajouterScoring
+                                "
                             >
-                                🔔 Alertes
-                            </h3>
+                                + Ajouter
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="
+                                profilSelectionne
+                                    .regles_scoring
+                                    .length === 0
+                            "
+                            class="empty-section"
+                        >
+                            <div
+                                class="empty-icon"
+                            >
+                                ✦
+                            </div>
 
                             <p
-                                class="mt-1 text-sm text-slate-500"
+                                class="mt-3 font-black text-slate-700"
                             >
-                                Email, Telegram ou Webhook.
+                                Aucun scoring
+                            </p>
+
+                            <p
+                                class="mt-1 text-xs text-slate-400"
+                            >
+                                Ajoutez d’abord un filtre, puis attribuez-lui un poids.
                             </p>
                         </div>
 
-                        <button
-                            type="button"
-                            class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50"
-                            @click="
-                                ajouterAlerte
-                            "
+                        <div
+                            v-else
+                            class="grid gap-4 p-5 md:grid-cols-2"
                         >
-                            + Ajouter une alerte
-                        </button>
-                    </div>
-
-                    <div
-                        v-if="
-                            profilSelectionne
-                                .alertes
-                                .length === 0
-                        "
-                        class="px-6 py-10 text-center text-sm text-slate-500"
-                    >
-                        Aucune alerte configurée.
-                    </div>
-
-                    <div
-                        v-else
-                        class="grid gap-5 p-6 xl:grid-cols-2"
-                    >
-                        <article
-                            v-for="
-                                (
-                                    alerte,
-                                    index
-                                ) in
-                                profilSelectionne.alertes
-                            "
-                            :key="
-                                alerte.id ??
-                                `new-alert-${index}`
-                            "
-                            class="rounded-xl border border-slate-200 p-5"
-                        >
-                            <!-- Header -->
                             <div
-                                class="flex items-center justify-between gap-3"
+                                v-for="
+                                    (
+                                        regle,
+                                        index
+                                    ) in profilSelectionne.regles_scoring
+                                "
+                                :key="
+                                    regle.id
+                                    ??
+                                    `score-${index}`
+                                "
+                                class="scoring-card"
+                            >
+                                <div
+                                    class="flex items-start justify-between gap-3"
+                                >
+                                    <div
+                                        class="flex min-w-0 items-center gap-3"
+                                    >
+                                        <div
+                                            class="scoring-icon"
+                                        >
+                                            ✦
+                                        </div>
+
+                                        <div
+                                            class="min-w-0"
+                                        >
+                                            <p
+                                                class="truncate text-sm font-black text-slate-800"
+                                            >
+                                                {{
+                                                    regle.critere
+                                                        ?.label
+                                                    ??
+                                                    'Critère'
+                                                }}
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-[10px] uppercase tracking-wide text-slate-400"
+                                            >
+                                                {{
+                                                    regle.critere
+                                                        ?.code
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="remove-button"
+                                        @click="
+                                            supprimerScoring(
+                                                index
+                                            )
+                                        "
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+
+                                <div
+                                    class="mt-5 flex items-end gap-4"
+                                >
+                                    <div
+                                        class="flex-1"
+                                    >
+                                        <label
+                                            class="field-label"
+                                        >
+                                            Poids
+                                        </label>
+
+                                        <input
+                                            v-model.number="
+                                                regle.poids
+                                            "
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            class="field-control text-lg font-black"
+                                        >
+                                    </div>
+
+                                    <div
+                                        class="weight-display"
+                                    >
+                                        +{{
+                                            Number(
+                                                regle.poids
+                                                || 0
+                                            )
+                                        }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="border-t border-slate-100 bg-gradient-to-r from-violet-50/70 to-indigo-50/70 px-5 py-4"
+                        >
+                            <div
+                                class="flex items-center justify-between"
                             >
                                 <span
-                                    :class="
-                                        classeFrequence(
-                                            alerte.frequence
-                                        )
-                                    "
-                                    class="rounded-full px-3 py-1 text-xs font-semibold"
+                                    class="text-xs font-bold text-slate-500"
                                 >
-                                    {{
-                                        labelFrequence(
-                                            alerte.frequence
-                                        )
-                                    }}
+                                    Score maximum du profil
                                 </span>
 
-                                <button
-                                    type="button"
-                                    class="text-sm font-semibold text-red-600"
-                                    @click="
-                                        supprimerAlerte(
-                                            index
-                                        )
-                                    "
+                                <span
+                                    class="rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-2 text-lg font-black text-white shadow-lg shadow-indigo-100"
                                 >
-                                    🗑 Supprimer
-                                </button>
+                                    {{
+                                        scoreMaximum
+                                    }}
+                                </span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- ALERTS -->
+
+                    <article
+                        class="workspace-card"
+                    >
+                        <div
+                            class="workspace-header"
+                        >
+                            <div
+                                class="flex items-start gap-3"
+                            >
+                                <div
+                                    class="section-icon section-amber"
+                                >
+                                    🔔
+                                </div>
+
+                                <div>
+                                    <p
+                                        class="section-eyebrow text-amber-500"
+                                    >
+                                        Automation
+                                    </p>
+
+                                    <h2
+                                        class="section-title"
+                                    >
+                                        Alertes
+                                    </h2>
+
+                                    <p
+                                        class="section-description"
+                                    >
+                                        Définissez où, quand et à partir de quel score vous souhaitez être alerté.
+                                    </p>
+                                </div>
                             </div>
 
-                            <div
-                                class="mt-5 grid gap-4 sm:grid-cols-2"
+                            <button
+                                type="button"
+                                class="add-button"
+                                @click="
+                                    ajouterAlerte
+                                "
                             >
-                                <!-- Channel -->
-                                <div>
-                                    <label
-                                        class="mb-2 block text-xs font-semibold uppercase text-slate-400"
-                                    >
-                                        Canal
-                                    </label>
+                                + Ajouter
+                            </button>
+                        </div>
 
-                                    <select
-                                        v-model="
-                                            alerte.canal
-                                        "
-                                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                                    >
-                                        <option
-                                            value="email"
-                                        >
-                                            Email
-                                        </option>
+                        <div
+                            v-if="
+                                profilSelectionne
+                                    .alertes
+                                    .length === 0
+                            "
+                            class="empty-section"
+                        >
+                            <div
+                                class="empty-icon"
+                            >
+                                🔔
+                            </div>
 
-                                        <option
-                                            value="telegram"
-                                        >
-                                            Telegram
-                                        </option>
+                            <p
+                                class="mt-3 font-black text-slate-700"
+                            >
+                                Aucune alerte
+                            </p>
 
-                                        <option
-                                            value="webhook"
-                                        >
-                                            Webhook
-                                        </option>
-                                    </select>
-                                </div>
+                            <p
+                                class="mt-1 text-xs text-slate-400"
+                            >
+                                Ajoutez une notification pour les missions les plus pertinentes.
+                            </p>
+                        </div>
 
-                                <!-- Frequency -->
-                                <div>
-                                    <label
-                                        class="mb-2 block text-xs font-semibold uppercase text-slate-400"
-                                    >
-                                        Fréquence
-                                    </label>
-
-                                    <select
-                                        v-model="
-                                            alerte.frequence
-                                        "
-                                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                                    >
-                                        <option
-                                            value="immediate"
-                                        >
-                                            Immediate
-                                        </option>
-
-                                        <option
-                                            value="daily"
-                                        >
-                                            Daily
-                                        </option>
-
-                                        <option
-                                            value="weekly"
-                                        >
-                                            Weekly
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <!-- Destination -->
+                        <div
+                            v-else
+                            class="grid gap-4 p-5 xl:grid-cols-2"
+                        >
+                            <article
+                                v-for="
+                                    (
+                                        alerte,
+                                        index
+                                    ) in profilSelectionne.alertes
+                                "
+                                :key="
+                                    alerte.id
+                                    ??
+                                    `alert-${index}`
+                                "
+                                class="alert-card"
+                            >
                                 <div
-                                    class="sm:col-span-2"
+                                    class="flex items-start justify-between gap-3"
                                 >
-                                    <label
-                                        class="mb-2 block text-xs font-semibold uppercase text-slate-400"
+                                    <div
+                                        class="flex items-center gap-3"
                                     >
-                                        Destination
-                                    </label>
-
-                                    <input
-                                        v-model="
-                                            alerte.destination
-                                        "
-                                        :type="
-                                            alerte.canal ===
-                                            'email'
-                                                ? 'email'
-                                                : 'text'
-                                        "
-                                        placeholder="Destination..."
-                                        class="w-full rounded-lg border border-slate-300 px-3 py-2"
-                                    >
-                                </div>
-
-                                <!-- Threshold -->
-                                <div>
-                                    <label
-                                        class="mb-2 block text-xs font-semibold uppercase text-slate-400"
-                                    >
-                                        Score minimum
-                                    </label>
-
-                                    <input
-                                        v-model.number="
-                                            alerte.seuil_score_min
-                                        "
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        class="w-full rounded-lg border border-slate-300 px-3 py-2"
-                                    >
-                                </div>
-
-                                <!-- Active -->
-                                <div
-                                    class="flex items-end"
-                                >
-                                    <label
-                                        class="flex w-full cursor-pointer items-center justify-between rounded-lg bg-slate-50 px-4 py-3"
-                                    >
-                                        <span
-                                            class="text-sm font-medium"
+                                        <div
+                                            class="channel-icon"
                                         >
-                                            Active
-                                        </span>
+                                            {{
+                                                iconeCanal(
+                                                    alerte.canal
+                                                )
+                                            }}
+                                        </div>
+
+                                        <div>
+                                            <p
+                                                class="text-sm font-black text-slate-800"
+                                            >
+                                                {{
+                                                    labelCanal(
+                                                        alerte.canal
+                                                    )
+                                                }}
+                                            </p>
+
+                                            <span
+                                                class="mt-1 inline-block rounded-full bg-indigo-50 px-2 py-1 text-[9px] font-black text-indigo-600"
+                                            >
+                                                {{
+                                                    labelFrequence(
+                                                        alerte.frequence
+                                                    )
+                                                }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="flex items-center gap-2"
+                                    >
+                                        <!-- FIXED MINI SWITCH -->
+
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            :aria-checked="
+                                                alerte.actif
+                                            "
+                                            class="mini-switch"
+                                            :class="
+                                                alerte.actif
+                                                    ? 'mini-switch-on'
+                                                    : 'mini-switch-off'
+                                            "
+                                            @click="
+                                                alerte.actif =
+                                                    !alerte.actif
+                                            "
+                                        >
+                                            <span
+                                                :class="
+                                                    alerte.actif
+                                                        ? 'mini-thumb-on'
+                                                        : 'mini-thumb-off'
+                                                "
+                                            ></span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="remove-button"
+                                            @click="
+                                                supprimerAlerte(
+                                                    index
+                                                )
+                                            "
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="mt-5 grid gap-4 sm:grid-cols-2"
+                                >
+                                    <div>
+                                        <label
+                                            class="field-label"
+                                        >
+                                            Canal
+                                        </label>
+
+                                        <select
+                                            v-model="
+                                                alerte.canal
+                                            "
+                                            class="field-control"
+                                        >
+                                            <option value="email">
+                                                Email
+                                            </option>
+
+                                            <option value="telegram">
+                                                Telegram
+                                            </option>
+
+                                            <option value="webhook">
+                                                Webhook
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="field-label"
+                                        >
+                                            Fréquence
+                                        </label>
+
+                                        <select
+                                            v-model="
+                                                alerte.frequence
+                                            "
+                                            class="field-control"
+                                        >
+                                            <option value="immediate">
+                                                Immédiate
+                                            </option>
+
+                                            <option value="daily">
+                                                Quotidienne
+                                            </option>
+
+                                            <option value="weekly">
+                                                Hebdomadaire
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div
+                                        class="sm:col-span-2"
+                                    >
+                                        <label
+                                            class="field-label"
+                                        >
+                                            Destination
+                                        </label>
 
                                         <input
                                             v-model="
-                                                alerte.actif
+                                                alerte.destination
                                             "
-                                            type="checkbox"
-                                            class="h-5 w-5"
+                                            :type="
+                                                alerte.canal === 'email'
+                                                    ? 'email'
+                                                    : 'text'
+                                            "
+                                            :placeholder="
+                                                placeholderDestination(
+                                                    alerte.canal
+                                                )
+                                            "
+                                            class="field-control"
                                         >
-                                    </label>
+                                    </div>
+
+                                    <div
+                                        class="sm:col-span-2"
+                                    >
+                                        <div
+                                            class="flex items-end justify-between gap-4"
+                                        >
+                                            <div
+                                                class="flex-1"
+                                            >
+                                                <label
+                                                    class="field-label"
+                                                >
+                                                    Score minimum
+                                                </label>
+
+                                                <input
+                                                    v-model.number="
+                                                        alerte.seuil_score_min
+                                                    "
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    class="field-control"
+                                                >
+                                            </div>
+
+                                            <div
+                                                class="threshold-box"
+                                            >
+                                                ≥
+                                                {{
+                                                    alerte.seuil_score_min
+                                                }}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </article>
-                    </div>
-                </div>
+                            </article>
+                        </div>
+                    </article>
 
-                <!-- ================================================= -->
-                <!-- ACTIONS -->
-                <!-- ================================================= -->
+                    <!-- SAVE BAR -->
 
-                <div
-                    class="sticky bottom-4 z-20 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur"
-                >
                     <div
-                        class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+                        class="save-bar"
                     >
-                        <button
-                            type="button"
-                            :disabled="
-                                deleting
-                            "
-                            class="rounded-xl border border-red-200 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                            @click="
-                                supprimerProfil
-                            "
+                        <div
+                            class="hidden sm:block"
                         >
-                            🗑 Supprimer le profil
-                        </button>
-
-                        <button
-                            type="button"
-                            :disabled="saving"
-                            class="rounded-xl bg-slate-900 px-7 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-wait disabled:opacity-50"
-                            @click="
-                                sauvegarderProfil
-                            "
-                        >
-                            <template
-                                v-if="saving"
+                            <p
+                                class="text-xs font-black text-slate-700"
                             >
-                                Enregistrement...
-                            </template>
+                                Configuration du profil
+                            </p>
 
-                            <template v-else>
-                                Save profile
-                            </template>
-                        </button>
+                            <p
+                                class="mt-1 text-[10px] text-slate-400"
+                            >
+                                L'enregistrement recalcule les scores des missions.
+                            </p>
+                        </div>
+
+                        <div
+                            class="flex w-full gap-3 sm:w-auto"
+                        >
+                            <button
+                                type="button"
+                                :disabled="
+                                    deleting
+                                "
+                                class="delete-profile-button"
+                                @click="
+                                    supprimerProfil
+                                "
+                            >
+                                {{
+                                    deleting
+                                        ? 'Suppression...'
+                                        : 'Supprimer'
+                                }}
+                            </button>
+
+                            <button
+                                type="button"
+                                :disabled="
+                                    saving
+                                "
+                                class="save-profile-button"
+                                @click="
+                                    sauvegarderProfil
+                                "
+                            >
+                                <span
+                                    v-if="
+                                        saving
+                                    "
+                                    class="spinner"
+                                ></span>
+
+                                {{
+                                    saving
+                                        ? 'Recalcul en cours...'
+                                        : '✓ Enregistrer le profil'
+                                }}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- CREATE PROFILE MODAL -->
-        <!-- ========================================================= -->
-
-        <div
-            v-if="
-                modalCreationOuvert
-            "
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4"
-            @click.self="
-                fermerCreationProfil
-            "
-        >
-            <div
-                class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-            >
-                <div
-                    class="flex items-start justify-between"
-                >
-                    <div>
-                        <h3
-                            class="text-xl font-bold text-slate-900"
-                        >
-                            Nouveau profil
-                        </h3>
-
-                        <p
-                            class="mt-1 text-sm text-slate-500"
-                        >
-                            Créez un nouveau profil
-                            de recherche.
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-lg"
-                        @click="
-                            fermerCreationProfil
-                        "
-                    >
-                        ×
-                    </button>
-                </div>
-
-                <div class="mt-6">
-                    <label
-                        class="block text-sm font-semibold text-slate-700"
-                    >
-                        Nom du profil
-                    </label>
-
-                    <input
-                        v-model="
-                            nouveauProfil.nom
-                        "
-                        type="text"
-                        placeholder="Ex: PHP Europe"
-                        class="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500"
-                        @keyup.enter="
-                            creerProfil
-                        "
-                    >
-                </div>
-
-                <label
-                    class="mt-5 flex cursor-pointer items-center justify-between rounded-xl bg-slate-50 p-4"
-                >
-                    <div>
-                        <p
-                            class="font-medium text-slate-800"
-                        >
-                            Profil actif
-                        </p>
-
-                        <p
-                            class="mt-1 text-xs text-slate-500"
-                        >
-                            Active immédiatement
-                            le profil.
-                        </p>
-                    </div>
-
-                    <input
-                        v-model="
-                            nouveauProfil.actif
-                        "
-                        type="checkbox"
-                        class="h-5 w-5"
-                    >
-                </label>
-
-                <div
-                    class="mt-6 flex gap-3"
-                >
-                    <button
-                        type="button"
-                        class="flex-1 rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700"
-                        @click="
-                            fermerCreationProfil
-                        "
-                    >
-                        Annuler
-                    </button>
-
-                    <button
-                        type="button"
-                        :disabled="
-                            creating
-                        "
-                        class="flex-1 rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50"
-                        @click="
-                            creerProfil
-                        "
-                    >
-                        <template
-                            v-if="
-                                creating
-                            "
-                        >
-                            Création...
-                        </template>
-
-                        <template v-else>
-                            Créer
-                        </template>
-                    </button>
-                </div>
+                </section>
             </div>
         </div>
+
+        <!-- ========================================================= -->
+        <!-- CREATE OVERLAY -->
+        <!-- ========================================================= -->
+
+        <transition
+            name="fade"
+        >
+            <div
+                v-if="
+                    modalCreationOuvert
+                "
+                class="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm"
+                @click="
+                    fermerCreationProfil
+                "
+            ></div>
+        </transition>
+
+        <!-- ========================================================= -->
+        <!-- CREATE MODAL -->
+        <!-- ========================================================= -->
+
+        <transition
+            name="modal"
+        >
+            <div
+                v-if="
+                    modalCreationOuvert
+                "
+                class="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+            >
+                <div
+                    class="premium-modal w-full max-w-md"
+                    @click.stop
+                >
+                    <div
+                        class="modal-header"
+                    >
+                        <div>
+                            <p
+                                class="text-[10px] font-black uppercase tracking-[0.16em] text-violet-500"
+                            >
+                                Search Intelligence
+                            </p>
+
+                            <h2
+                                class="mt-2 text-2xl font-black text-slate-900"
+                            >
+                                Nouveau profil
+                            </h2>
+
+                            <p
+                                class="mt-1 text-xs text-slate-400"
+                            >
+                                Créez une nouvelle stratégie de recherche.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="close-button"
+                            @click="
+                                fermerCreationProfil
+                            "
+                        >
+                            ×
+                        </button>
+                    </div>
+
+                    <div
+                        class="p-6"
+                    >
+                        <label
+                            class="field-label"
+                        >
+                            Nom du profil
+                        </label>
+
+                        <input
+                            v-model="
+                                nouveauProfil.nom
+                            "
+                            type="text"
+                            placeholder="Ex. Laravel Remote"
+                            class="field-control text-base font-bold"
+                            @keyup.enter="
+                                creerProfil
+                            "
+                        >
+
+                        <div
+                            class="mt-5 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div>
+                                <p
+                                    class="text-sm font-black text-slate-800"
+                                >
+                                    Profil actif
+                                </p>
+
+                                <p
+                                    class="mt-1 text-xs text-slate-400"
+                                >
+                                    Utilisable immédiatement après création.
+                                </p>
+                            </div>
+
+                            <!-- NEW PREMIUM STATUS BUTTON -->
+
+                            <button
+                                type="button"
+                                role="switch"
+                                :aria-checked="
+                                    nouveauProfil.actif
+                                "
+                                class="premium-status-toggle"
+                                :class="
+                                    nouveauProfil.actif
+                                        ? 'premium-status-active'
+                                        : 'premium-status-inactive'
+                                "
+                                @click="
+                                    nouveauProfil.actif =
+                                        !nouveauProfil.actif
+                                "
+                            >
+                                <span
+                                    class="premium-status-dot"
+                                >
+                                    <span
+                                        v-if="
+                                            nouveauProfil.actif
+                                        "
+                                        class="premium-status-pulse"
+                                    ></span>
+
+                                    <span
+                                        class="premium-status-dot-core"
+                                    ></span>
+                                </span>
+
+                                <span>
+                                    {{
+                                        nouveauProfil.actif
+                                            ? 'Actif'
+                                            : 'Inactif'
+                                    }}
+                                </span>
+
+                                <span
+                                    class="premium-status-icon"
+                                >
+                                    {{
+                                        nouveauProfil.actif
+                                            ? '✓'
+                                            : '—'
+                                    }}
+                                </span>
+                            </button>
+                        </div>
+
+                        <div
+                            class="mt-6 flex gap-3"
+                        >
+                            <button
+                                type="button"
+                                class="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50"
+                                @click="
+                                    fermerCreationProfil
+                                "
+                            >
+                                Annuler
+                            </button>
+
+                            <button
+                                type="button"
+                                :disabled="
+                                    creating
+                                "
+                                class="create-button flex-1"
+                                @click="
+                                    creerProfil
+                                "
+                            >
+                                {{
+                                    creating
+                                        ? 'Création...'
+                                        : 'Créer le profil'
+                                }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
     </main>
 </template>
+
+<style scoped>
+.profiles-page {
+    background:
+        linear-gradient(
+            135deg,
+            #f8fafc 0%,
+            #ffffff 45%,
+            #f5f3ff 100%
+        );
+}
+
+/* ================================================================
+   HERO
+================================================================ */
+
+.profile-hero {
+    animation:
+        heroReveal
+        0.6s
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+        )
+        both;
+}
+
+.hero-gradient {
+    background:
+        linear-gradient(
+            90deg,
+            #a5b4fc,
+            #c4b5fd,
+            #93c5fd
+        );
+
+    background-clip: text;
+    -webkit-background-clip: text;
+
+    color: transparent;
+}
+
+.hero-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    border-radius: 0.9rem;
+
+    background: white;
+
+    padding:
+        0.75rem
+        1rem;
+
+    font-size: 0.75rem;
+    font-weight: 900;
+
+    color: #0f172a;
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.hero-button:hover {
+    transform:
+        translateY(-2px);
+
+    box-shadow:
+        0 15px 30px -18px
+        rgba(
+            255,
+            255,
+            255,
+            0.7
+        );
+}
+
+.hero-stat {
+    min-width: 110px;
+
+    border:
+        1px solid
+        rgba(
+            255,
+            255,
+            255,
+            0.1
+        );
+
+    border-radius: 1rem;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.07
+        );
+
+    padding: 0.9rem;
+
+    backdrop-filter:
+        blur(14px);
+}
+
+.hero-stat span {
+    display: block;
+
+    font-size: 0.55rem;
+    font-weight: 900;
+
+    letter-spacing: 0.12em;
+
+    text-transform: uppercase;
+
+    color: #94a3b8;
+}
+
+.hero-stat strong {
+    display: block;
+
+    margin-top: 0.3rem;
+
+    font-size: 1.5rem;
+    font-weight: 900;
+}
+
+/* ================================================================
+   PROFILE SIDEBAR
+================================================================ */
+
+.profile-selector {
+    width: 100%;
+
+    border-radius: 0.95rem;
+
+    padding: 0.9rem;
+
+    text-align: left;
+
+    transition:
+        transform 0.25s ease,
+        background 0.25s ease,
+        color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.profile-selector
++
+.profile-selector {
+    margin-top: 0.3rem;
+}
+
+.profile-selector-idle {
+    color: #475569;
+}
+
+.profile-selector-idle:hover {
+    background: #f8fafc;
+
+    transform:
+        translateX(2px);
+}
+
+.profile-selector-active {
+    background:
+        linear-gradient(
+            135deg,
+            #0f172a,
+            #312e81
+        );
+
+    color: white;
+
+    box-shadow:
+        0 15px 30px -22px
+        rgba(
+            49,
+            46,
+            129,
+            0.75
+        );
+}
+
+.status-dot {
+    height: 0.5rem;
+    width: 0.5rem;
+
+    flex-shrink: 0;
+
+    border-radius: 9999px;
+}
+
+.score-mini {
+    display: flex;
+
+    min-width: 2rem;
+    height: 2rem;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.65rem;
+
+    background:
+        rgba(
+            148,
+            163,
+            184,
+            0.14
+        );
+
+    padding:
+        0
+        0.45rem;
+
+    font-size: 0.7rem;
+    font-weight: 900;
+}
+
+.profile-mini-chip {
+    border-radius: 0.5rem;
+
+    background:
+        rgba(
+            148,
+            163,
+            184,
+            0.1
+        );
+
+    padding:
+        0.25rem
+        0.4rem;
+
+    font-size: 0.55rem;
+    font-weight: 900;
+}
+
+/* ================================================================
+   SUMMARY
+================================================================ */
+
+.profile-summary {
+    border:
+        1px solid
+        rgba(
+            226,
+            232,
+            240,
+            0.85
+        );
+
+    border-radius: 1.55rem;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.9
+        );
+
+    padding: 1.5rem;
+
+    box-shadow:
+        0 20px 45px -36px
+        rgba(
+            15,
+            23,
+            42,
+            0.45
+        );
+
+    backdrop-filter:
+        blur(18px);
+}
+
+.profile-state {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 0.45rem;
+
+    border: 1px solid;
+
+    border-radius: 9999px;
+
+    padding:
+        0.38rem
+        0.65rem;
+
+    font-size: 0.62rem;
+    font-weight: 900;
+}
+
+.profile-state-active {
+    border-color: #a7f3d0;
+
+    background: #ecfdf5;
+
+    color: #047857;
+}
+
+.profile-state-inactive {
+    border-color: #e2e8f0;
+
+    background: #f8fafc;
+
+    color: #64748b;
+}
+
+.profile-name-input {
+    margin-top: 1rem;
+
+    width: 100%;
+
+    max-width: 620px;
+
+    border: 0;
+
+    background: transparent;
+
+    padding: 0;
+
+    font-size: 1.7rem;
+    font-weight: 900;
+
+    letter-spacing: -0.025em;
+
+    color: #0f172a;
+
+    outline: none;
+}
+
+.profile-name-input:focus {
+    color: #4338ca;
+}
+
+/* ================================================================
+   SCORE PANEL
+================================================================ */
+
+.score-panel {
+    display: flex;
+
+    width: 100%;
+
+    align-items: center;
+
+    gap: 1rem;
+
+    border:
+        1px solid
+        #ede9fe;
+
+    border-radius: 1.25rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #faf5ff,
+            #eef2ff
+        );
+
+    padding: 1rem;
+}
+
+@media (
+    min-width: 1280px
+) {
+    .score-panel {
+        width: 290px;
+    }
+}
+
+.score-orb {
+    display: flex;
+
+    height: 5rem;
+    width: 5rem;
+
+    flex-shrink: 0;
+
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 1.25rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #4338ca,
+            #7c3aed
+        );
+
+    color: white;
+
+    box-shadow:
+        0 16px 32px -20px
+        rgba(
+            79,
+            70,
+            229,
+            0.75
+        );
+}
+
+.score-orb strong {
+    font-size: 1.65rem;
+
+    font-weight: 900;
+
+    line-height: 1.5rem;
+}
+
+/* ================================================================
+   SUMMARY STATS
+================================================================ */
+
+.summary-stat {
+    display: flex;
+
+    align-items: center;
+
+    gap: 0.75rem;
+
+    border:
+        1px solid
+        #f1f5f9;
+
+    border-radius: 1rem;
+
+    background: #f8fafc;
+
+    padding: 0.8rem;
+}
+
+.summary-stat > span {
+    display: flex;
+
+    height: 2.25rem;
+    width: 2.25rem;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.75rem;
+
+    background: white;
+
+    font-weight: 900;
+
+    color: #6366f1;
+
+    box-shadow:
+        0 5px 15px -12px
+        rgba(
+            15,
+            23,
+            42,
+            0.45
+        );
+}
+
+.summary-stat p {
+    font-size: 0.55rem;
+
+    font-weight: 900;
+
+    text-transform: uppercase;
+
+    letter-spacing:
+        0.08em;
+
+    color: #94a3b8;
+}
+
+.summary-stat strong {
+    display: block;
+
+    margin-top: 0.15rem;
+
+    font-size: 1rem;
+
+    font-weight: 900;
+
+    color: #1e293b;
+}
+
+/* ================================================================
+   RULE CHIPS
+================================================================ */
+
+.rule-chip {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 0.3rem;
+
+    border:
+        1px solid
+        #e0e7ff;
+
+    border-radius: 0.65rem;
+
+    background: #eef2ff;
+
+    padding:
+        0.38rem
+        0.6rem;
+
+    font-size: 0.62rem;
+
+    color: #6366f1;
+}
+
+.rule-chip strong {
+    font-weight: 900;
+}
+
+/* ================================================================
+   NEW PREMIUM ACTIVE / INACTIVE BUTTON
+================================================================ */
+
+.premium-status-toggle {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 0.5rem;
+
+    min-width: 108px;
+
+    flex-shrink: 0;
+
+    border: 1px solid;
+
+    border-radius: 0.85rem;
+
+    padding:
+        0.55rem
+        0.65rem;
+
+    font-size: 0.68rem;
+
+    font-weight: 900;
+
+    transition:
+        transform 0.25s ease,
+        background 0.25s ease,
+        border-color 0.25s ease,
+        color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.premium-status-toggle:hover {
+    transform:
+        translateY(-2px);
+}
+
+.premium-status-active {
+    border-color: #a7f3d0;
+
+    background:
+        linear-gradient(
+            135deg,
+            #ecfdf5,
+            #f0fdf4
+        );
+
+    color: #047857;
+
+    box-shadow:
+        0 10px 25px -20px
+        rgba(
+            16,
+            185,
+            129,
+            0.7
+        );
+}
+
+.premium-status-inactive {
+    border-color: #e2e8f0;
+
+    background:
+        linear-gradient(
+            135deg,
+            #f8fafc,
+            #ffffff
+        );
+
+    color: #64748b;
+}
+
+.premium-status-dot {
+    position: relative;
+
+    display: flex;
+
+    height: 0.65rem;
+    width: 0.65rem;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+}
+
+.premium-status-dot-core {
+    position: relative;
+
+    z-index: 2;
+
+    height: 0.5rem;
+    width: 0.5rem;
+
+    border-radius: 9999px;
+
+    background: currentColor;
+}
+
+.premium-status-pulse {
+    position: absolute;
+
+    inset: 0;
+
+    border-radius: 9999px;
+
+    background: #10b981;
+
+    opacity: 0.3;
+
+    animation:
+        statusPulse
+        1.8s
+        ease-out
+        infinite;
+}
+
+.premium-status-icon {
+    display: flex;
+
+    height: 1.4rem;
+    width: 1.4rem;
+
+    margin-left: auto;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.45rem;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.85
+        );
+
+    font-size: 0.6rem;
+
+    font-weight: 900;
+
+    box-shadow:
+        0 3px 8px -6px
+        rgba(
+            15,
+            23,
+            42,
+            0.4
+        );
+}
+
+/* ================================================================
+   WORKSPACE
+================================================================ */
+
+.workspace-card {
+    overflow: hidden;
+
+    border:
+        1px solid
+        rgba(
+            226,
+            232,
+            240,
+            0.85
+        );
+
+    border-radius: 1.5rem;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.9
+        );
+
+    box-shadow:
+        0 18px 45px -36px
+        rgba(
+            15,
+            23,
+            42,
+            0.42
+        );
+
+    backdrop-filter:
+        blur(18px);
+
+    transition:
+        box-shadow 0.3s ease;
+}
+
+.workspace-card:hover {
+    box-shadow:
+        0 26px 50px -38px
+        rgba(
+            79,
+            70,
+            229,
+            0.25
+        );
+}
+
+.workspace-header {
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 1rem;
+
+    border-bottom:
+        1px solid
+        #f1f5f9;
+
+    padding: 1.3rem;
+}
+
+.section-icon {
+    display: flex;
+
+    height: 2.8rem;
+    width: 2.8rem;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.9rem;
+
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.section-indigo {
+    background: #eef2ff;
+
+    color: #4f46e5;
+}
+
+.section-violet {
+    background: #f5f3ff;
+
+    color: #7c3aed;
+}
+
+.section-amber {
+    background: #fffbeb;
+
+    color: #d97706;
+}
+
+.section-eyebrow {
+    font-size: 0.58rem;
+
+    font-weight: 900;
+
+    text-transform: uppercase;
+
+    letter-spacing:
+        0.13em;
+
+    color: #6366f1;
+}
+
+.section-title {
+    margin-top: 0.25rem;
+
+    font-size: 1rem;
+
+    font-weight: 900;
+
+    color: #0f172a;
+}
+
+.section-description {
+    margin-top: 0.25rem;
+
+    font-size: 0.7rem;
+
+    line-height: 1.25rem;
+
+    color: #94a3b8;
+}
+
+.add-button {
+    flex-shrink: 0;
+
+    border:
+        1px solid
+        #e2e8f0;
+
+    border-radius: 0.8rem;
+
+    background: white;
+
+    padding:
+        0.6rem
+        0.8rem;
+
+    font-size: 0.68rem;
+
+    font-weight: 900;
+
+    color: #475569;
+
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.add-button:hover {
+    transform:
+        translateY(-2px);
+
+    border-color: #c7d2fe;
+
+    color: #4f46e5;
+
+    box-shadow:
+        0 10px 20px -18px
+        rgba(
+            79,
+            70,
+            229,
+            0.55
+        );
+}
+
+.empty-section {
+    padding:
+        2.8rem
+        1rem;
+
+    text-align: center;
+}
+
+.empty-icon {
+    display: flex;
+
+    height: 3rem;
+    width: 3rem;
+
+    margin: auto;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 1rem;
+
+    background: #f8fafc;
+
+    color: #94a3b8;
+}
+
+/* ================================================================
+   RULES
+================================================================ */
+
+.rule-card {
+    position: relative;
+
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 1rem;
+
+    border:
+        1px solid
+        #f1f5f9;
+
+    border-radius: 1.15rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #f8fafc,
+            white
+        );
+
+    padding: 1rem;
+
+    transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.rule-card:hover {
+    transform:
+        translateY(-2px);
+
+    border-color: #e0e7ff;
+
+    box-shadow:
+        0 12px 30px -28px
+        rgba(
+            79,
+            70,
+            229,
+            0.4
+        );
+}
+
+.rule-number {
+    display: flex;
+
+    height: 2rem;
+    width: 2rem;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.7rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #eef2ff,
+            #ede9fe
+        );
+
+    font-size: 0.65rem;
+
+    font-weight: 900;
+
+    color: #6366f1;
+}
+
+/* ================================================================
+   FIELDS
+================================================================ */
+
+.field-label {
+    margin-bottom: 0.45rem;
+
+    display: block;
+
+    font-size: 0.58rem;
+
+    font-weight: 900;
+
+    text-transform: uppercase;
+
+    letter-spacing:
+        0.08em;
+
+    color: #64748b;
+}
+
+.field-control {
+    width: 100%;
+
+    border:
+        1px solid
+        #e2e8f0;
+
+    border-radius: 0.8rem;
+
+    background:
+        rgba(
+            248,
+            250,
+            252,
+            0.8
+        );
+
+    padding:
+        0.7rem
+        0.8rem;
+
+    font-size: 0.75rem;
+
+    color: #334155;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+}
+
+.field-control:focus {
+    border-color: #818cf8;
+
+    background: white;
+
+    box-shadow:
+        0 0 0 4px
+        rgba(
+            99,
+            102,
+            241,
+            0.08
+        );
+}
+
+.field-control:disabled {
+    cursor: not-allowed;
+
+    opacity: 0.65;
+}
+
+.remove-button {
+    display: flex;
+
+    height: 2rem;
+    width: 2rem;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border:
+        1px solid
+        #ffe4e6;
+
+    border-radius: 0.65rem;
+
+    background: white;
+
+    color: #fb7185;
+
+    transition:
+        transform 0.2s ease,
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+.remove-button:hover {
+    transform:
+        rotate(5deg);
+
+    background: #fff1f2;
+
+    color: #e11d48;
+}
+
+/* ================================================================
+   SCORING
+================================================================ */
+
+.scoring-card {
+    border:
+        1px solid
+        #ede9fe;
+
+    border-radius: 1.1rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #faf5ff,
+            #ffffff
+        );
+
+    padding: 1rem;
+}
+
+.scoring-icon {
+    display: flex;
+
+    height: 2.4rem;
+    width: 2.4rem;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.8rem;
+
+    background: #ede9fe;
+
+    font-weight: 900;
+
+    color: #7c3aed;
+}
+
+.weight-display {
+    display: flex;
+
+    min-width: 3.5rem;
+
+    height: 2.7rem;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.8rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #4f46e5,
+            #7c3aed
+        );
+
+    padding:
+        0
+        0.7rem;
+
+    font-size: 0.85rem;
+
+    font-weight: 900;
+
+    color: white;
+}
+
+/* ================================================================
+   ALERTS
+================================================================ */
+
+.alert-card {
+    border:
+        1px solid
+        #e2e8f0;
+
+    border-radius: 1.15rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #ffffff,
+            #f8fafc
+        );
+
+    padding: 1rem;
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease,
+        border-color 0.25s ease;
+}
+
+.alert-card:hover {
+    transform:
+        translateY(-2px);
+
+    border-color: #ddd6fe;
+
+    box-shadow:
+        0 14px 30px -28px
+        rgba(
+            124,
+            58,
+            237,
+            0.45
+        );
+}
+
+.channel-icon {
+    display: flex;
+
+    height: 2.6rem;
+    width: 2.6rem;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.85rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #eef2ff,
+            #f5f3ff
+        );
+
+    font-size: 1rem;
+
+    font-weight: 900;
+
+    color: #6366f1;
+}
+
+/* ================================================================
+   FIXED MINI SWITCH
+================================================================ */
+
+.mini-switch {
+    position: relative;
+
+    height: 1.55rem;
+
+    width: 2.8rem;
+
+    flex-shrink: 0;
+
+    overflow: hidden;
+
+    border-radius: 9999px;
+
+    transition:
+        background 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.mini-switch-on {
+    background:
+        linear-gradient(
+            135deg,
+            #10b981,
+            #059669
+        );
+
+    box-shadow:
+        0 6px 14px -8px
+        rgba(
+            16,
+            185,
+            129,
+            0.8
+        );
+}
+
+.mini-switch-off {
+    background: #cbd5e1;
+}
+
+.mini-switch span {
+    position: absolute;
+
+    left: 0.25rem;
+
+    top: 0.25rem;
+
+    height: 1.05rem;
+
+    width: 1.05rem;
+
+    border-radius: 9999px;
+
+    background: white;
+
+    box-shadow:
+        0 2px 6px
+        rgba(
+            15,
+            23,
+            42,
+            0.2
+        );
+
+    transition:
+        transform 0.25s
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+        );
+}
+
+.mini-thumb-off {
+    transform:
+        translateX(0);
+}
+
+.mini-thumb-on {
+    transform:
+        translateX(1.25rem);
+}
+
+.threshold-box {
+    display: flex;
+
+    height: 2.65rem;
+
+    min-width: 4rem;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.8rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #0f172a,
+            #312e81
+        );
+
+    padding:
+        0
+        0.75rem;
+
+    font-size: 0.8rem;
+
+    font-weight: 900;
+
+    color: white;
+}
+
+/* ================================================================
+   SAVE BAR
+================================================================ */
+
+.save-bar {
+    position: sticky;
+
+    bottom: 1rem;
+
+    z-index: 20;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 1rem;
+
+    border:
+        1px solid
+        rgba(
+            226,
+            232,
+            240,
+            0.85
+        );
+
+    border-radius: 1.15rem;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.9
+        );
+
+    padding: 0.85rem;
+
+    box-shadow:
+        0 20px 50px -30px
+        rgba(
+            15,
+            23,
+            42,
+            0.5
+        );
+
+    backdrop-filter:
+        blur(20px);
+}
+
+.delete-profile-button {
+    flex: 1;
+
+    border:
+        1px solid
+        #fecdd3;
+
+    border-radius: 0.8rem;
+
+    background: white;
+
+    padding:
+        0.75rem
+        1rem;
+
+    font-size: 0.68rem;
+
+    font-weight: 900;
+
+    color: #e11d48;
+
+    transition:
+        transform 0.2s ease,
+        background 0.2s ease;
+}
+
+.delete-profile-button:hover:not(:disabled) {
+    transform:
+        translateY(-2px);
+
+    background: #fff1f2;
+}
+
+.save-profile-button {
+    display: inline-flex;
+
+    flex: 1;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 0.5rem;
+
+    border-radius: 0.8rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #0f172a,
+            #312e81,
+            #4f46e5
+        );
+
+    padding:
+        0.75rem
+        1.2rem;
+
+    font-size: 0.68rem;
+
+    font-weight: 900;
+
+    color: white;
+
+    box-shadow:
+        0 14px 30px -22px
+        rgba(
+            79,
+            70,
+            229,
+            0.8
+        );
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.save-profile-button:hover:not(:disabled) {
+    transform:
+        translateY(-2px);
+
+    box-shadow:
+        0 18px 34px -22px
+        rgba(
+            79,
+            70,
+            229,
+            0.9
+        );
+}
+
+.save-profile-button:disabled,
+.delete-profile-button:disabled {
+    cursor: wait;
+
+    opacity: 0.55;
+}
+
+.spinner {
+    height: 0.8rem;
+
+    width: 0.8rem;
+
+    border:
+        2px solid
+        rgba(
+            255,
+            255,
+            255,
+            0.3
+        );
+
+    border-top-color: white;
+
+    border-radius: 9999px;
+
+    animation:
+        spin
+        0.65s
+        linear
+        infinite;
+}
+
+/* ================================================================
+   MODAL
+================================================================ */
+
+.premium-modal {
+    overflow: hidden;
+
+    border:
+        1px solid
+        rgba(
+            255,
+            255,
+            255,
+            0.8
+        );
+
+    border-radius: 1.5rem;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.97
+        );
+
+    box-shadow:
+        0 35px 80px -30px
+        rgba(
+            15,
+            23,
+            42,
+            0.55
+        );
+
+    backdrop-filter:
+        blur(24px);
+}
+
+.modal-header {
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 1rem;
+
+    border-bottom:
+        1px solid
+        #f1f5f9;
+
+    padding:
+        1.4rem
+        1.5rem;
+}
+
+.close-button {
+    display: flex;
+
+    height: 2.5rem;
+
+    width: 2.5rem;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border:
+        1px solid
+        #e2e8f0;
+
+    border-radius: 0.8rem;
+
+    background: white;
+
+    font-size: 1.1rem;
+
+    color: #64748b;
+
+    transition:
+        transform 0.3s ease,
+        background 0.3s ease,
+        color 0.3s ease;
+}
+
+.close-button:hover {
+    transform:
+        rotate(90deg);
+
+    background: #fff1f2;
+
+    color: #e11d48;
+}
+
+.create-button {
+    border-radius: 0.8rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            #0f172a,
+            #312e81,
+            #6d28d9
+        );
+
+    padding: 0.75rem;
+
+    font-size: 0.72rem;
+
+    font-weight: 900;
+
+    color: white;
+
+    box-shadow:
+        0 14px 30px -22px
+        rgba(
+            79,
+            70,
+            229,
+            0.8
+        );
+}
+
+/* ================================================================
+   TRANSITIONS
+================================================================ */
+
+.fade-enter-active,
+.fade-leave-active {
+    transition:
+        opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+.modal-enter-active,
+.modal-leave-active {
+    transition:
+        opacity 0.25s ease,
+        transform 0.3s
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+        );
+}
+
+.modal-enter-from,
+.modal-leave-to {
+    opacity: 0;
+
+    transform:
+        translateY(15px)
+        scale(0.98);
+}
+
+.toast-enter-active,
+.toast-leave-active {
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
+}
+
+.toast-enter-from,
+.toast-leave-to {
+    opacity: 0;
+
+    transform:
+        translateY(-8px);
+}
+
+/* ================================================================
+   ANIMATIONS
+================================================================ */
+
+@keyframes heroReveal {
+    from {
+        opacity: 0;
+
+        transform:
+            translateY(12px)
+            scale(0.99);
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translateY(0)
+            scale(1);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform:
+            rotate(360deg);
+    }
+}
+
+@keyframes statusPulse {
+    0% {
+        transform:
+            scale(1);
+
+        opacity: 0.35;
+    }
+
+    70% {
+        transform:
+            scale(2.1);
+
+        opacity: 0;
+    }
+
+    100% {
+        transform:
+            scale(2.1);
+
+        opacity: 0;
+    }
+}
+
+/* ================================================================
+   MOBILE
+================================================================ */
+
+@media (
+    max-width: 639px
+) {
+    .save-bar {
+        align-items: stretch;
+    }
+
+    .premium-status-toggle {
+        width: 100%;
+
+        justify-content:
+            flex-start;
+    }
+}
+
+/* ================================================================
+   ACCESSIBILITY
+================================================================ */
+
+@media (
+    prefers-reduced-motion:
+    reduce
+) {
+    .profile-hero,
+    .spinner,
+    .premium-status-pulse {
+        animation: none;
+    }
+
+    .profile-selector,
+    .workspace-card,
+    .rule-card,
+    .alert-card,
+    .premium-status-toggle,
+    .mini-switch,
+    .mini-switch span {
+        transition: none;
+    }
+}
+</style>

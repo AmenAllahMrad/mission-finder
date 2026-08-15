@@ -3,36 +3,35 @@
 namespace App\Http\Controllers;
 
 use App\Models\Source;
+use App\Scrapers\Contracts\SourceAwareParserInterface;
 use App\Scrapers\Contracts\SourceParserInterface;
+use App\Scrapers\FreeWorkParser;
+use App\Scrapers\LinkedInEmailParser;
 use App\Scrapers\RemoteOkParser;
 use App\Scrapers\WeWorkRemotelyParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Throwable;
-use App\Scrapers\Contracts\SourceAwareParserInterface;
-use App\Scrapers\LinkedInEmailParser;
-use App\Scrapers\FreeWorkParser;
-
 
 class SourceController extends Controller
 {
     /*
     |--------------------------------------------------------------------------
-    | Parsers actuellement supportés
+    | Parsers autorisés
     |--------------------------------------------------------------------------
     */
 
     private const PARSERS = [
-    RemoteOkParser::class,
-    WeWorkRemotelyParser::class,
-    LinkedInEmailParser::class,
-    FreeWorkParser::class,
-];
+        RemoteOkParser::class,
+        WeWorkRemotelyParser::class,
+        LinkedInEmailParser::class,
+        FreeWorkParser::class,
+    ];
 
     /*
     |--------------------------------------------------------------------------
-    | Liste des sources
+    | Sources
     |--------------------------------------------------------------------------
     */
 
@@ -47,7 +46,9 @@ class SourceController extends Controller
             ->get()
             ->map(
                 fn (Source $source) =>
-                    $this->serializeSource($source)
+                    $this->serializeSource(
+                        $source
+                    )
             );
 
         return response()->json(
@@ -87,26 +88,26 @@ class SourceController extends Controller
             ],
 
             [
-    'class' =>
-        LinkedInEmailParser::class,
+                'class' =>
+                    LinkedInEmailParser::class,
 
-    'label' =>
-        'LinkedIn Email',
+                'label' =>
+                    'LinkedIn Email',
 
-    'type' =>
-        'email',
-],
+                'type' =>
+                    'email',
+            ],
 
-[
-    'class' =>
-        FreeWorkParser::class,
+            [
+                'class' =>
+                    FreeWorkParser::class,
 
-    'label' =>
-        'Free-Work',
+                'label' =>
+                    'Free-Work',
 
-    'type' =>
-        'html',
-],
+                'type' =>
+                    'html',
+            ],
         ]);
     }
 
@@ -148,7 +149,8 @@ class SourceController extends Controller
             'credentials' =>
                 $validated[
                     'credentials'
-                ] ?? null,
+                ]
+                ?? null,
 
             'actif' =>
                 $validated['actif'],
@@ -178,7 +180,7 @@ class SourceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Modifier une source
+    | Modifier
     |--------------------------------------------------------------------------
     */
 
@@ -217,8 +219,8 @@ class SourceController extends Controller
         ];
 
         /*
-         * Les credentials existants sont conservés
-         * lorsque le frontend n'en fournit pas.
+         * Si credentials n'est pas fourni,
+         * le secret existant est conservé.
          */
         if (
             array_key_exists(
@@ -232,7 +234,9 @@ class SourceController extends Controller
                 ];
         }
 
-        $source->update($data);
+        $source->update(
+            $data
+        );
 
         $source->refresh();
 
@@ -256,13 +260,6 @@ class SourceController extends Controller
     |--------------------------------------------------------------------------
     | Tester une source
     |--------------------------------------------------------------------------
-    |
-    | Le test :
-    | - résout le parser ;
-    | - lance fetch();
-    | - normalise un exemple ;
-    | - n'importe RIEN dans MySQL.
-    |
     */
 
     public function tester(
@@ -275,6 +272,10 @@ class SourceController extends Controller
             $parserClass =
                 $source->parser_class;
 
+            /*
+             * Sécurité : uniquement les parsers
+             * explicitement autorisés.
+             */
             if (
                 ! in_array(
                     $parserClass,
@@ -283,7 +284,8 @@ class SourceController extends Controller
                 )
             ) {
                 return response()->json([
-                    'success' => false,
+                    'success' =>
+                        false,
 
                     'message' =>
                         'Parser non autorisé.',
@@ -296,7 +298,8 @@ class SourceController extends Controller
                 )
             ) {
                 return response()->json([
-                    'success' => false,
+                    'success' =>
+                        false,
 
                     'message' =>
                         'La classe du parser est introuvable.',
@@ -304,65 +307,60 @@ class SourceController extends Controller
             }
 
             /*
-             * Résolution par le container Laravel.
+             * Résolution UNE seule fois.
              */
             $parser =
-                app($parserClass);
+                app(
+                    $parserClass
+                );
 
             if (
                 ! $parser instanceof
                     SourceParserInterface
             ) {
                 return response()->json([
-                    'success' => false,
+                    'success' =>
+                        false,
 
                     'message' =>
                         'Le parser ne respecte pas SourceParserInterface.',
                 ], 422);
             }
 
-            $parser = app($parserClass);
-
-if (
-    ! $parser instanceof
-        SourceParserInterface
-) {
-    return response()->json([
-        'success' => false,
-
-        'message' =>
-            'Le parser ne respecte pas SourceParserInterface.',
-    ], 422);
-}
-
-if (
-    $parser instanceof
-    SourceAwareParserInterface
-) {
-    $parser->setSource(
-        $source
-    );
-}
-
-$items =
-    $parser->fetch();
+            /*
+             * Injection de la Source pour
+             * Free-Work / LinkedIn / parsers source-aware.
+             */
+            if (
+                $parser instanceof
+                    SourceAwareParserInterface
+            ) {
+                $parser->setSource(
+                    $source
+                );
+            }
 
             /*
-             * Récupération réelle.
+             * IMPORTANT :
+             * fetch() n'est exécuté qu'UNE fois.
              */
             $items =
                 $parser->fetch();
 
             if (
-                count($items) === 0
+                count(
+                    $items
+                ) === 0
             ) {
                 return response()->json([
-                    'success' => true,
+                    'success' =>
+                        true,
 
                     'message' =>
                         'Connexion réussie, mais aucune mission n’a été retournée.',
 
-                    'items_count' => 0,
+                    'items_count' =>
+                        0,
 
                     'duration_ms' =>
                         $this->durationMs(
@@ -375,8 +373,8 @@ $items =
             }
 
             /*
-             * On normalise seulement
-             * la première mission pour le test.
+             * Une seule mission est normalisée
+             * pour la prévisualisation.
              */
             $sample =
                 $parser->normaliser(
@@ -384,21 +382,24 @@ $items =
                 );
 
             /*
-             * Ne jamais retourner raw_data
-             * dans l'interface de test.
+             * raw_data peut être volumineux
+             * et ne doit pas être affiché ici.
              */
             unset(
                 $sample['raw_data']
             );
 
             return response()->json([
-                'success' => true,
+                'success' =>
+                    true,
 
                 'message' =>
                     'Source testée avec succès.',
 
                 'items_count' =>
-                    count($items),
+                    count(
+                        $items
+                    ),
 
                 'duration_ms' =>
                     $this->durationMs(
@@ -408,16 +409,23 @@ $items =
                 'sample' =>
                     $sample,
             ]);
-        } catch (Throwable $exception) {
-            report($exception);
+        } catch (
+            Throwable $exception
+        ) {
+            report(
+                $exception
+            );
 
             return response()->json([
-                'success' => false,
+                'success' =>
+                    false,
 
                 'message' =>
-                    $exception->getMessage(),
+                    $exception
+                        ->getMessage(),
 
-                'items_count' => 0,
+                'items_count' =>
+                    0,
 
                 'duration_ms' =>
                     $this->durationMs(
@@ -432,21 +440,16 @@ $items =
 
     /*
     |--------------------------------------------------------------------------
-    | Supprimer une source
+    | Supprimer
     |--------------------------------------------------------------------------
-    |
-    | On interdit la suppression si la source possède
-    | déjà des missions ou des occurrences.
-    |
-    | Dans ce cas, il faut simplement la désactiver.
-    |
     */
 
     public function destroy(
         Source $source
     ): JsonResponse {
         $missionsCount =
-            $source->missions()
+            $source
+                ->missions()
                 ->count();
 
         $occurrencesCount =
@@ -480,7 +483,7 @@ $items =
 
     /*
     |--------------------------------------------------------------------------
-    | Validation commune
+    | Validation
     |--------------------------------------------------------------------------
     */
 
@@ -531,12 +534,6 @@ $items =
                 'boolean',
             ],
 
-            /*
-             * Optionnel.
-             *
-             * Le modèle Source chiffre automatiquement
-             * ces données grâce à encrypted:array.
-             */
             'credentials' => [
                 'sometimes',
                 'nullable',
@@ -549,10 +546,6 @@ $items =
     |--------------------------------------------------------------------------
     | Sérialisation sécurisée
     |--------------------------------------------------------------------------
-    |
-    | IMPORTANT :
-    | credentials n'est jamais retourné.
-    |
     */
 
     private function serializeSource(
@@ -592,8 +585,7 @@ $items =
                     ->dernier_statut,
 
             /*
-             * Seulement oui/non.
-             * Jamais le secret.
+             * Jamais retourner les credentials.
              */
             'credentials_configured' =>
                 ! empty(
@@ -601,16 +593,14 @@ $items =
                 ),
 
             'missions_count' =>
-                (int)
-                (
+                (int) (
                     $source
                         ->missions_count
                     ?? 0
                 ),
 
             'mission_occurrences_count' =>
-                (int)
-                (
+                (int) (
                     $source
                         ->mission_occurrences_count
                     ?? 0
@@ -620,7 +610,7 @@ $items =
 
     /*
     |--------------------------------------------------------------------------
-    | Duration
+    | Durée
     |--------------------------------------------------------------------------
     */
 
@@ -630,8 +620,10 @@ $items =
         return (int) round(
             (
                 microtime(true)
-                - $startedAt
-            ) * 1000
+                -
+                $startedAt
+            )
+            * 1000
         );
     }
 }
