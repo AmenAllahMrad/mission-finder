@@ -59,6 +59,9 @@ const filters = ref({
     source_id: '',
     profil_id: '',
     score_min: '',
+    date_from: '',
+    date_to: '',
+    sort: 'recent',
 });
 
 /*
@@ -74,7 +77,10 @@ const filtresActifs = computed(() => {
         filters.value.remote ||
         filters.value.source_id ||
         filters.value.profil_id ||
-        filters.value.score_min !== ''
+        filters.value.score_min !== '' ||
+        filters.value.date_from ||
+        filters.value.date_to ||
+        filters.value.sort !== 'recent'
     );
 });
 
@@ -183,6 +189,21 @@ const chargerMissions =
                     );
             }
 
+            if (filters.value.date_from) {
+                params.date_from =
+                    filters.value.date_from;
+            }
+
+            if (filters.value.date_to) {
+                params.date_to =
+                    filters.value.date_to;
+            }
+
+            if (filters.value.sort) {
+                params.sort =
+                    filters.value.sort;
+            }
+
             const response =
                 await axios.get(
                     '/api/missions',
@@ -239,11 +260,17 @@ const resetFiltres = () => {
     filters.value.source_id = '';
     filters.value.profil_id = '';
     filters.value.score_min = '';
+    filters.value.date_from = '';
+    filters.value.date_to = '';
+    filters.value.sort = 'recent';
 };
 
-const supprimerFiltreActif = (
-    key
-) => {
+const supprimerFiltreActif = (key) => {
+    if (key === 'sort') {
+        filters.value.sort = 'recent';
+        return;
+    }
+
     if (
         Object.prototype.hasOwnProperty.call(
             filters.value,
@@ -583,6 +610,21 @@ const labelRemote = (
         remote
         ??
         'Non renseigné'
+    );
+};
+
+const labelTri = (sort) => {
+    const labels = {
+        recent: 'Plus récentes',
+        oldest: 'Plus anciennes',
+        score_desc: 'Score décroissant',
+        score_asc: 'Score croissant',
+    };
+
+    return (
+        labels[sort]
+        ??
+        'Tri personnalisé'
     );
 };
 
@@ -950,6 +992,54 @@ const filtresActifsListe =
             });
         }
 
+        if (filters.value.date_from) {
+            liste.push({
+                key:
+                    'date_from',
+
+                prefix:
+                    'Depuis',
+
+                value:
+                    formaterDate(
+                        filters.value.date_from
+                    ),
+            });
+        }
+
+        if (filters.value.date_to) {
+            liste.push({
+                key:
+                    'date_to',
+
+                prefix:
+                    'Jusqu’au',
+
+                value:
+                    formaterDate(
+                        filters.value.date_to
+                    ),
+            });
+        }
+
+        if (
+            filters.value.sort &&
+            filters.value.sort !== 'recent'
+        ) {
+            liste.push({
+                key:
+                    'sort',
+
+                prefix:
+                    'Tri',
+
+                value:
+                    labelTri(
+                        filters.value.sort
+                    ),
+            });
+        }
+
         return liste;
     });
 
@@ -1194,6 +1284,15 @@ watch(
 
         () =>
             filters.value.score_min,
+
+        () =>
+            filters.value.date_from,
+
+        () =>
+            filters.value.date_to,
+
+        () =>
+            filters.value.sort,
     ],
 
     () => {
@@ -1408,7 +1507,7 @@ onMounted(
                 </div>
 
                 <div
-                    class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-6"
+                    class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-10"
                 >
                     <!-- Search -->
 
@@ -1608,6 +1707,75 @@ onMounted(
                             placeholder="Ex. 3"
                             class="filter-control"
                         >
+                    </div>
+
+                    <!-- Date from -->
+
+                    <div>
+                        <label
+                            class="filter-label"
+                        >
+                            Date de début
+                        </label>
+
+                        <input
+                            v-model="
+                                filters.date_from
+                            "
+                            type="date"
+                            class="filter-control"
+                        >
+                    </div>
+
+                    <!-- Date to -->
+
+                    <div>
+                        <label
+                            class="filter-label"
+                        >
+                            Date de fin
+                        </label>
+
+                        <input
+                            v-model="
+                                filters.date_to
+                            "
+                            type="date"
+                            class="filter-control"
+                        >
+                    </div>
+
+                    <!-- Sort -->
+
+                    <div>
+                        <label
+                            class="filter-label"
+                        >
+                            Trier par
+                        </label>
+
+                        <select
+                            v-model="
+                                filters.sort
+                            "
+                            class="filter-control"
+                        >
+                            <option value="recent">
+                                Plus récentes
+                            </option>
+
+                            <option value="oldest">
+                                Plus anciennes
+                            </option>
+
+                            <option value="score_desc">
+                                Score décroissant
+                            </option>
+
+                            <option value="score_asc">
+                                Score croissant
+                            </option>
+                        </select>
                     </div>
                 </div>
 

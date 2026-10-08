@@ -17,30 +17,48 @@ class MissionController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        /*
+         * Validation des nouveaux paramètres :
+         * - date_from
+         * - date_to
+         * - sort
+         */
+        $validated = $request->validate([
+            'date_from' => [
+                'nullable',
+                'date',
+            ],
+
+            'date_to' => [
+                'nullable',
+                'date',
+                'after_or_equal:date_from',
+            ],
+
+            'sort' => [
+                'nullable',
+                'in:recent,oldest,score_desc,score_asc',
+            ],
+        ]);
+
         $perPage = min(
             max(
-                (int) $request->input(
-                    'per_page',
-                    15
-                ),
+                (int) $request->input('per_page', 15),
                 5
             ),
             100
         );
 
         /*
-         * Profil éventuellement sélectionné.
-         */
+        |--------------------------------------------------------------------------
+        | Profil sélectionné
+        |--------------------------------------------------------------------------
+        */
+
         $profilId = null;
 
-        if (
-            $request->filled(
-                'profil_id'
-            )
-        ) {
-            $value = (int) $request->input(
-                'profil_id'
-            );
+        if ($request->filled('profil_id')) {
+            $value = (int) $request->input('profil_id');
 
             if ($value > 0) {
                 $profilId = $value;
@@ -48,40 +66,55 @@ class MissionController extends Controller
         }
 
         /*
-         * Score minimum éventuellement sélectionné.
-         */
+        |--------------------------------------------------------------------------
+        | Score minimum
+        |--------------------------------------------------------------------------
+        */
+
         $scoreMin = null;
 
         if (
-            $request->filled(
-                'score_min'
-            )
-            &&
-            is_numeric(
-                $request->input(
-                    'score_min'
-                )
-            )
+            $request->filled('score_min') &&
+            is_numeric($request->input('score_min'))
         ) {
             $scoreMin = max(
                 0,
-                (int) $request->input(
-                    'score_min'
-                )
+                (int) $request->input('score_min')
             );
         }
 
         /*
+        |--------------------------------------------------------------------------
+        | Dates
+        |--------------------------------------------------------------------------
+        */
+
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Tri
+        |--------------------------------------------------------------------------
+        */
+
+        $sort = $validated['sort'] ?? 'recent';
+
+        /*
          * IMPORTANT :
          *
-         * On ne récupère volontairement PAS
-         * description ni raw_data dans la liste.
+         * On ne récupère volontairement PAS :
+         * - description
+         * - raw_data
          *
-         * raw_data Free-Work peut contenir beaucoup
-         * de HTML et rendre les tris MySQL trop lourds.
+         * dans la liste principale.
          *
-         * Ces champs restent disponibles dans show().
+         * raw_data peut contenir énormément de HTML,
+         * notamment avec Free-Work.
+         *
+         * Ces données restent disponibles dans show().
          */
+
         $query = Mission::query()
             ->select([
                 'id',
@@ -104,18 +137,11 @@ class MissionController extends Controller
                 'stacks:id,nom',
 
                 /*
-                 * Si un profil est choisi,
-                 * inutile de renvoyer les scores
-                 * des autres profils.
+                 * Si un profil est sélectionné,
+                 * on ne charge que son score.
                  */
-                'scoresProfils' => function (
-                    $scoreQuery
-                ) use (
-                    $profilId
-                ) {
-                    if (
-                        $profilId !== null
-                    ) {
+                'scoresProfils' => function ($scoreQuery) use ($profilId) {
+                    if ($profilId !== null) {
                         $scoreQuery->where(
                             'profil_recherche_id',
                             $profilId
@@ -130,26 +156,16 @@ class MissionController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        if (
-            $request->filled(
-                'search'
-            )
-        ) {
+        if ($request->filled('search')) {
             $search = trim(
                 $request
-                    ->string(
-                        'search'
-                    )
+                    ->string('search')
                     ->toString()
             );
 
             if ($search !== '') {
                 $query->where(
-                    function (
-                        $q
-                    ) use (
-                        $search
-                    ) {
+                    function ($q) use ($search) {
                         $q
                             ->where(
                                 'titre',
@@ -177,17 +193,11 @@ class MissionController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        if (
-            $request->filled(
-                'statut'
-            )
-        ) {
+        if ($request->filled('statut')) {
             $query->where(
                 'statut',
                 $request
-                    ->string(
-                        'statut'
-                    )
+                    ->string('statut')
                     ->toString()
             );
         }
@@ -198,17 +208,11 @@ class MissionController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        if (
-            $request->filled(
-                'remote'
-            )
-        ) {
+        if ($request->filled('remote')) {
             $query->where(
                 'remote_type',
                 $request
-                    ->string(
-                        'remote'
-                    )
+                    ->string('remote')
                     ->toString()
             );
         }
@@ -219,15 +223,10 @@ class MissionController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        if (
-            $request->filled(
+        if ($request->filled('source_id')) {
+            $sourceId = (int) $request->input(
                 'source_id'
-            )
-        ) {
-            $sourceId =
-                (int) $request->input(
-                    'source_id'
-                );
+            );
 
             if ($sourceId > 0) {
                 $query->where(
@@ -235,6 +234,28 @@ class MissionController extends Controller
                     $sourceId
                 );
             }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Filtre dates
+        |--------------------------------------------------------------------------
+        */
+
+        if ($dateFrom !== null) {
+            $query->whereDate(
+                'date_publication',
+                '>=',
+                $dateFrom
+            );
+        }
+
+        if ($dateTo !== null) {
+            $query->whereDate(
+                'date_publication',
+                '<=',
+                $dateTo
+            );
         }
 
         /*
@@ -254,14 +275,10 @@ class MissionController extends Controller
         |
         */
 
-        if (
-            $profilId !== null
-        ) {
+        if ($profilId !== null) {
             $query->whereHas(
                 'scoresProfils',
-                function (
-                    $scoreQuery
-                ) use (
+                function ($scoreQuery) use (
                     $profilId,
                     $scoreMin
                 ) {
@@ -270,9 +287,7 @@ class MissionController extends Controller
                         $profilId
                     );
 
-                    if (
-                        $scoreMin !== null
-                    ) {
+                    if ($scoreMin !== null) {
                         $scoreQuery->where(
                             'score',
                             '>=',
@@ -281,16 +296,10 @@ class MissionController extends Controller
                     }
                 }
             );
-        } elseif (
-            $scoreMin !== null
-        ) {
+        } elseif ($scoreMin !== null) {
             $query->whereHas(
                 'scoresProfils',
-                function (
-                    $scoreQuery
-                ) use (
-                    $scoreMin
-                ) {
+                function ($scoreQuery) use ($scoreMin) {
                     $scoreQuery->where(
                         'score',
                         '>=',
@@ -302,53 +311,110 @@ class MissionController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Tri
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $sort === 'score_desc' ||
+            $sort === 'score_asc'
+        ) {
+            /*
+             * Si un profil est sélectionné :
+             * on trie sur son score.
+             *
+             * Sinon :
+             * on prend le meilleur score parmi les profils.
+             */
+            $scoreSubquery = '
+                (
+                    SELECT COALESCE(MAX(smp.score), 0)
+                    FROM scores_missions_profils AS smp
+                    WHERE smp.mission_id = missions.id
+            ';
+
+            if ($profilId !== null) {
+                $scoreSubquery .= sprintf(
+                    ' AND smp.profil_recherche_id = %d',
+                    $profilId
+                );
+            }
+
+            $scoreSubquery .= '
+                )
+            ';
+
+            $direction = $sort === 'score_asc'
+                ? 'ASC'
+                : 'DESC';
+
+            $query
+                ->orderByRaw(
+                    $scoreSubquery . $direction
+                )
+                ->orderByDesc('date_publication')
+                ->orderByDesc('id');
+        } else {
+            /*
+             * Tri chronologique.
+             */
+            $direction = $sort === 'oldest'
+                ? 'asc'
+                : 'desc';
+
+            /*
+             * Les dates nulles restent en dernier.
+             */
+            $query
+                ->orderByRaw(
+                    'date_publication IS NULL ASC'
+                )
+                ->orderBy(
+                    'date_publication',
+                    $direction
+                )
+                ->orderBy(
+                    'id',
+                    $direction
+                );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Pagination
         |--------------------------------------------------------------------------
         */
 
-        $missions = $query
-            ->orderByDesc(
-                'date_publication'
-            )
-            ->orderByDesc(
-                'id'
-            )
-            ->paginate(
-                $perPage
-            );
+        $missions = $query->paginate(
+            $perPage
+        );
 
         /*
         |--------------------------------------------------------------------------
-        | Profils disponibles pour le filtre Vue
+        | Profils disponibles pour Vue
         |--------------------------------------------------------------------------
         */
 
-        $profils =
-            ProfilRecherche::query()
-                ->select([
-                    'id',
-                    'nom',
-                    'actif',
-                ])
-                ->where(
-                    'actif',
-                    true
-                )
-                ->orderBy(
-                    'nom'
-                )
-                ->get();
+        $profils = ProfilRecherche::query()
+            ->select([
+                'id',
+                'nom',
+                'actif',
+            ])
+            ->where(
+                'actif',
+                true
+            )
+            ->orderBy('nom')
+            ->get();
 
         /*
-         * On conserve exactement la structure
-         * habituelle du paginator Laravel et
-         * on ajoute simplement "profils".
+         * Structure paginator Laravel
+         * + profils.
          */
-        $payload =
-            $missions->toArray();
+        $payload = $missions->toArray();
 
-        $payload['profils'] =
-            $profils;
+        $payload['profils'] = $profils;
 
         return response()->json(
             $payload
@@ -365,34 +431,18 @@ class MissionController extends Controller
         Mission $mission
     ): JsonResponse {
         /*
-         * Une mission ouverte pour la première fois
-         * n'est plus considérée comme "nouvelle".
-         *
-         * On ne modifie automatiquement QUE
-         * le statut "nouveau".
-         *
-         * Les statuts :
-         * - vu
-         * - interessant
-         * - postule
-         * - ecarte
-         *
-         * restent donc toujours sous contrôle
-         * de l'utilisateur.
+         * Une mission nouvellement découverte
+         * devient automatiquement "vue"
+         * lorsqu'on ouvre son détail.
          */
-        if (
-            $mission->statut ===
-            'nouveau'
-        ) {
-            $mission->statut =
-                'vu';
-
+        if ($mission->statut === 'nouveau') {
+            $mission->statut = 'vu';
             $mission->save();
         }
 
         /*
-         * Le détail charge volontairement
-         * les données complètes de la mission.
+         * Ici seulement, on charge les informations
+         * complètes de la mission.
          */
         $mission->load([
             'source:id,nom',
@@ -402,8 +452,7 @@ class MissionController extends Controller
         ]);
 
         return response()->json([
-            'mission' =>
-                $mission,
+            'mission' => $mission,
         ]);
     }
 
@@ -417,14 +466,12 @@ class MissionController extends Controller
         Request $request,
         Mission $mission
     ): JsonResponse {
-        $validated =
-            $request->validate([
-                'statut' => [
-                    'required',
-
-                    'in:nouveau,vu,interessant,ecarte,postule',
-                ],
-            ]);
+        $validated = $request->validate([
+            'statut' => [
+                'required',
+                'in:nouveau,vu,interessant,ecarte,postule',
+            ],
+        ]);
 
         $mission->statut =
             $validated['statut'];
@@ -434,8 +481,8 @@ class MissionController extends Controller
          * on conserve la date de candidature.
          */
         if (
-            $validated['statut']
-            === 'postule'
+            $validated['statut'] ===
+            'postule'
         ) {
             $mission->date_candidature =
                 $mission->date_candidature

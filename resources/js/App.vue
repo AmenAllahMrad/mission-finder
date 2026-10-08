@@ -8,6 +8,7 @@ import DashboardView from './components/DashboardView.vue';
 import MissionsView from './components/MissionsView.vue';
 import SourcesView from './components/SourcesView.vue';
 import ProfilsView from './components/ProfilsView.vue';
+import CandidaturesView from './components/CandidaturesView.vue';
 
 /*
 |--------------------------------------------------------------------------
@@ -32,6 +33,13 @@ const navigation = [
         label: 'Missions',
 
         icon: 'M9 4V2h6v2h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5Zm2 0h2V3h-2v1Zm-7 7v7h16v-7h-5v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1H4Zm7 0h2V9h-2v2Z',
+    },
+
+    {
+        id: 'candidatures',
+        label: 'Candidatures',
+
+        icon: 'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 4h8v2H8V8Zm0 4h5v2H8v-2Zm0 4h8v2H8v-2Z',
     },
 
     {
@@ -285,7 +293,7 @@ const naviguer = (
             class="mobile-navigation md:hidden"
         >
             <div
-                class="grid grid-cols-4"
+                class="grid grid-cols-5"
             >
                 <button
                     v-for="
@@ -370,6 +378,14 @@ const naviguer = (
                         'sources'
                     "
                     key="sources"
+                />
+
+                <CandidaturesView
+                    v-else-if="
+                        page ===
+                        'candidatures'
+                    "
+                    key="candidatures"
                 />
 
                 <ProfilsView
